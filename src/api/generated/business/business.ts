@@ -24,7 +24,10 @@ import type {
   SchemaRegisterResponse
 } from '../../models';
 
+import { apiClient } from '../../client';
 
+
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 
@@ -58,7 +61,7 @@ export const getCreateBusinessModelApiV1BusinessModelsPostUrl = () => {
 /**
  * @summary Create Business Model
  */
-export const createBusinessModelApiV1BusinessModelsPost = async (businessModelCreateRequest: BusinessModelCreateRequest, options?: RequestInit): Promise<createBusinessModelApiV1BusinessModelsPostResponse> => {
+export const createBusinessModelApiV1BusinessModelsPost = async (businessModelCreateRequest: BusinessModelCreateRequest, options?: Parameters<typeof apiClient>[1]): Promise<createBusinessModelApiV1BusinessModelsPostResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -66,21 +69,14 @@ export const createBusinessModelApiV1BusinessModelsPost = async (businessModelCr
     if (Array.isArray(h)) return Object.fromEntries(h);
     return h;
   };
-const res = await fetch(getCreateBusinessModelApiV1BusinessModelsPostUrl(),
+return apiClient<createBusinessModelApiV1BusinessModelsPostResponse>(getCreateBusinessModelApiV1BusinessModelsPostUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(businessModelCreateRequest)
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: createBusinessModelApiV1BusinessModelsPostResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as createBusinessModelApiV1BusinessModelsPostResponse
-}
+);}
 
 
 
@@ -89,15 +85,15 @@ const res = await fetch(getCreateBusinessModelApiV1BusinessModelsPostUrl(),
 export const getCreateBusinessModelApiV1BusinessModelsPostMutationKey = () => ['createBusinessModelApiV1BusinessModelsPost'] as const;
 
 export const getCreateBusinessModelApiV1BusinessModelsPostMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBusinessModelApiV1BusinessModelsPost>>, TError,CreateBusinessModelApiV1BusinessModelsPostMutationVariables, TContext>, fetch?: RequestInit}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBusinessModelApiV1BusinessModelsPost>>, TError,CreateBusinessModelApiV1BusinessModelsPostMutationVariables, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createBusinessModelApiV1BusinessModelsPost>>, TError,CreateBusinessModelApiV1BusinessModelsPostMutationVariables, TContext> => {
 
 const mutationKey = getCreateBusinessModelApiV1BusinessModelsPostMutationKey();
-const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, fetch: undefined};
+      : {mutation: { mutationKey, }, request: undefined};
 
 
 
@@ -105,7 +101,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBusinessModelApiV1BusinessModelsPost>>, CreateBusinessModelApiV1BusinessModelsPostMutationVariables> = (props) => {
           const {data} = props ?? {};
 
-          return  createBusinessModelApiV1BusinessModelsPost(data,fetchOptions)
+          return  createBusinessModelApiV1BusinessModelsPost(data,requestOptions)
         }
 
 
@@ -124,7 +120,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
  * @summary Create Business Model
  */
 export const useCreateBusinessModelApiV1BusinessModelsPost = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBusinessModelApiV1BusinessModelsPost>>, TError,CreateBusinessModelApiV1BusinessModelsPostMutationVariables, TContext>, fetch?: RequestInit}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBusinessModelApiV1BusinessModelsPost>>, TError,CreateBusinessModelApiV1BusinessModelsPostMutationVariables, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof createBusinessModelApiV1BusinessModelsPost>>,
         TError,
@@ -164,7 +160,7 @@ export const getDiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostUrl = 
  * @summary Diff Business Schema
  */
 export const diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost = async (modelId: number,
-    schemaDiffRequest: SchemaDiffRequest, options?: RequestInit): Promise<diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostResponse> => {
+    schemaDiffRequest: SchemaDiffRequest, options?: Parameters<typeof apiClient>[1]): Promise<diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -172,21 +168,14 @@ export const diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost = async 
     if (Array.isArray(h)) return Object.fromEntries(h);
     return h;
   };
-const res = await fetch(getDiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostUrl(modelId),
+return apiClient<diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostResponse>(getDiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostUrl(modelId),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(schemaDiffRequest)
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostResponse
-}
+);}
 
 
 
@@ -195,15 +184,15 @@ const res = await fetch(getDiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDif
 export const getDiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostMutationKey = () => ['diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost'] as const;
 
 export const getDiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost>>, TError,DiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostMutationVariables, TContext>, fetch?: RequestInit}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost>>, TError,DiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostMutationVariables, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost>>, TError,DiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostMutationVariables, TContext> => {
 
 const mutationKey = getDiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostMutationKey();
-const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, fetch: undefined};
+      : {mutation: { mutationKey, }, request: undefined};
 
 
 
@@ -211,7 +200,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost>>, DiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostMutationVariables> = (props) => {
           const {modelId,data} = props ?? {};
 
-          return  diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost(modelId,data,fetchOptions)
+          return  diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost(modelId,data,requestOptions)
         }
 
 
@@ -230,7 +219,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
  * @summary Diff Business Schema
  */
 export const useDiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost>>, TError,DiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostMutationVariables, TContext>, fetch?: RequestInit}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost>>, TError,DiffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPostMutationVariables, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof diffBusinessSchemaApiV1BusinessModelsModelIdSchemaDiffPost>>,
         TError,
@@ -270,7 +259,7 @@ export const getRegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutUrl = (
  * @summary Register Business Schema
  */
 export const registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut = async (modelId: number,
-    schemaRegisterRequest: SchemaRegisterRequest, options?: RequestInit): Promise<registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPutResponse> => {
+    schemaRegisterRequest: SchemaRegisterRequest, options?: Parameters<typeof apiClient>[1]): Promise<registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPutResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -278,21 +267,14 @@ export const registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut = async (
     if (Array.isArray(h)) return Object.fromEntries(h);
     return h;
   };
-const res = await fetch(getRegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutUrl(modelId),
+return apiClient<registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPutResponse>(getRegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutUrl(modelId),
   {
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(schemaRegisterRequest)
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPutResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPutResponse
-}
+);}
 
 
 
@@ -301,15 +283,15 @@ const res = await fetch(getRegisterBusinessSchemaApiV1BusinessModelsModelIdSchem
 export const getRegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutMutationKey = () => ['registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut'] as const;
 
 export const getRegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut>>, TError,RegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutMutationVariables, TContext>, fetch?: RequestInit}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut>>, TError,RegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutMutationVariables, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut>>, TError,RegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutMutationVariables, TContext> => {
 
 const mutationKey = getRegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutMutationKey();
-const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, fetch: undefined};
+      : {mutation: { mutationKey, }, request: undefined};
 
 
 
@@ -317,7 +299,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut>>, RegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutMutationVariables> = (props) => {
           const {modelId,data} = props ?? {};
 
-          return  registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut(modelId,data,fetchOptions)
+          return  registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut(modelId,data,requestOptions)
         }
 
 
@@ -336,7 +318,7 @@ const {mutation: mutationOptions, fetch: fetchOptions} = options ?
  * @summary Register Business Schema
  */
 export const useRegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPut = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut>>, TError,RegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutMutationVariables, TContext>, fetch?: RequestInit}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut>>, TError,RegisterBusinessSchemaApiV1BusinessModelsModelIdSchemaPutMutationVariables, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof registerBusinessSchemaApiV1BusinessModelsModelIdSchemaPut>>,
         TError,

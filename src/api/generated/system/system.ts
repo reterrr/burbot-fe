@@ -23,7 +23,10 @@ import type {
   HealthHealthGet200
 } from '../../models';
 
+import { apiClient } from '../../client';
 
+
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 
@@ -65,23 +68,16 @@ export const getHealthHealthGetUrl = () => {
 /**
  * @summary Health
  */
-export const healthHealthGet = async ( options?: RequestInit): Promise<healthHealthGetResponse> => {
+export const healthHealthGet = async ( options?: Parameters<typeof apiClient>[1]): Promise<healthHealthGetResponse> => {
 
-  const res = await fetch(getHealthHealthGetUrl(),
+  return apiClient<healthHealthGetResponse>(getHealthHealthGetUrl(),
   {
     ...options,
     method: 'GET'
 
 
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: healthHealthGetResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as healthHealthGetResponse
-}
+);}
 
 
 
@@ -94,16 +90,16 @@ export const getHealthHealthGetQueryKey = () => {
     }
 
 
-export const getHealthHealthGetQueryOptions = <TData = Awaited<ReturnType<typeof healthHealthGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthHealthGet>>, TError, TData>>, fetch?: RequestInit}
+export const getHealthHealthGetQueryOptions = <TData = Awaited<ReturnType<typeof healthHealthGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthHealthGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
-const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getHealthHealthGetQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthHealthGet>>> = ({ signal }) => healthHealthGet({ signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthHealthGet>>> = ({ signal }) => healthHealthGet({ signal, ...requestOptions });
 
 
 
@@ -123,7 +119,7 @@ export function useHealthHealthGet<TData = Awaited<ReturnType<typeof healthHealt
           TError,
           Awaited<ReturnType<typeof healthHealthGet>>
         > , 'initialData'
-      >, fetch?: RequestInit}
+      >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useHealthHealthGet<TData = Awaited<ReturnType<typeof healthHealthGet>>, TError = unknown>(
@@ -133,11 +129,11 @@ export function useHealthHealthGet<TData = Awaited<ReturnType<typeof healthHealt
           TError,
           Awaited<ReturnType<typeof healthHealthGet>>
         > , 'initialData'
-      >, fetch?: RequestInit}
+      >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useHealthHealthGet<TData = Awaited<ReturnType<typeof healthHealthGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthHealthGet>>, TError, TData>>, fetch?: RequestInit}
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthHealthGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -145,7 +141,7 @@ export function useHealthHealthGet<TData = Awaited<ReturnType<typeof healthHealt
  */
 
 export function useHealthHealthGet<TData = Awaited<ReturnType<typeof healthHealthGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthHealthGet>>, TError, TData>>, fetch?: RequestInit}
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthHealthGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
