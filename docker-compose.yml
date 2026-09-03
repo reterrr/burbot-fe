@@ -1,0 +1,19 @@
+services:
+  generate-api:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: sh -c "npm ci && npm run api:generate"
+
+  fe:
+    container_name: burbot-fe
+    working_dir: /app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:80"
+    depends_on:
+      generate-api:
+        condition: service_completed_successfully
