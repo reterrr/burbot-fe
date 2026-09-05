@@ -15,6 +15,7 @@
     "@tanstack/react-query": "^5.102.8",
     "lucide-react": "^1.40.0",
     "monaco-editor": "^0.56.0",
+    "py-ast": "^1.16.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

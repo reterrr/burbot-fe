@@ -15,5 +15,6 @@ export interface BusinessModel {
   name: string;
   description?: string | null;
   metadata_json?: BusinessModelMetadataJson;
+  current_revision_id?: number | null;
   created_at?: string;
 }

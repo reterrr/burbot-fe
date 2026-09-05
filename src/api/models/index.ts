@@ -15,7 +15,6 @@ export * from './healthHealthGet200';
 export * from './hTTPValidationError';
 export * from './schema';
 export * from './schemaChangeResponse';
-export * from './schemaDiffRequest';
 export * from './schemaRegisterRequest';
 export * from './schemaRegisterRequestMetadataJson';
 export * from './schemaRegisterResponse';

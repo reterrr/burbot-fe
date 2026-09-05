@@ -12,8 +12,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     ports:
       - "8001:80"
     depends_on:
       generate-api:
         condition: service_completed_successfully
+    networks:
+      - burbot
+
+networks:
+  burbot:
+    external: true
+    name: burbot
