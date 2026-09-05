@@ -1,6 +1,15 @@
 import type { HTTPValidationError } from '../api/models'
 
 export function formatApiError(data: unknown, fallback: string): string {
+  if (typeof data === 'object' && data !== null && 'detail' in data) {
+    if (typeof data.detail === 'string') return data.detail
+    if (typeof data.detail === 'object' && data.detail !== null && !Array.isArray(data.detail)) {
+      const detail = data.detail as Record<string, unknown>
+      const message = detail.description ?? detail.message
+      if (typeof message === 'string') return message
+    }
+  }
+
   if (
     typeof data === 'object' &&
     data !== null &&

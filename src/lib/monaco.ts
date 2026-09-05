@@ -2,16 +2,15 @@ import { loader } from '@monaco-editor/react'
 import * as monaco from 'monaco-editor'
 
 import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker'
-import JsonWorker from 'monaco-editor/language/json/json.worker.js?worker'
+// Bundle Monaco's real Python grammar locally; no CDN download is needed.
+import { conf, language } from 'monaco-editor/languages/definitions/python/python.js'
+import { registerSchemaLanguage } from './schema-language.ts'
 
 self.MonacoEnvironment = {
-  getWorker(_moduleId: string, label: string) {
-    if (label === 'json') {
-      return new JsonWorker()
-    }
-
+  getWorker() {
     return new EditorWorker()
   },
 }
 
+registerSchemaLanguage(monaco, conf, language)
 loader.config({ monaco })

@@ -1,7 +1,6 @@
 import Editor, {
     type BeforeMount,
     type OnMount,
-    type OnValidate,
 } from '@monaco-editor/react'
 import {
     AlertTriangle,
@@ -14,7 +13,7 @@ import {
     CircleDot,
     Clock3,
     Code2,
-    FileJson,
+    FileCode2,
     GitBranch,
     GitCommitHorizontal,
     Hash,
@@ -48,12 +47,14 @@ import type {
 import {formatApiError} from '../lib/api-error'
 import {
     addEntityToSource,
-    BURBOT_EDITOR_SCHEMA,
-    DEFAULT_SCHEMA_SOURCE,
+    analyzeSchemaSource,
+    createDefaultSchemaSource,
     formatSchemaSource,
-    getSchemaOutline,
+    migrateLegacyDraft,
     parseSchemaSource,
 } from '../lib/schema'
+import { SCHEMA_LANGUAGE_ID } from '../lib/schema-language'
+import type { SchemaProblem } from '../lib/sema'
 
 interface RevisionStudioProps {
     models: BusinessModel[]
@@ -61,25 +62,22 @@ interface RevisionStudioProps {
     onModelIdChange: (modelId: number | null) => void
 }
 
-interface EditorProblem {
-    message: string
-    line: number
-    column: number
-    severity: number
-}
-
 type InspectorTab = 'changes' | 'problems'
 type PendingAction = 'register' | null
 
 function draftStorageKey(modelId: number | null): string {
-    return `burbot:schema-draft:${modelId ?? 'unbound'}`
+    return `burbot:schema-draft:python-v1:${modelId ?? 'unbound'}`
 }
 
 function readDraft(modelId: number | null): string {
     try {
-        return localStorage.getItem(draftStorageKey(modelId)) ?? DEFAULT_SCHEMA_SOURCE
+        const saved = localStorage.getItem(draftStorageKey(modelId))
+        if (saved !== null) return saved
+        const legacy = localStorage.getItem(`burbot:schema-draft:${modelId ?? 'unbound'}`)
+        // Keep the original JSON key as a backup; new saves use the Python key.
+        return legacy !== null ? migrateLegacyDraft(legacy) : createDefaultSchemaSource()
     } catch {
-        return DEFAULT_SCHEMA_SOURCE
+        return createDefaultSchemaSource()
     }
 }
 
@@ -118,7 +116,6 @@ export function RevisionStudio({
     const [changes, setChanges] = useState<SchemaChangeResponse[]>([])
     const [registration, setRegistration] =
         useState<SchemaRegisterResponse | null>(null)
-    const [problems, setProblems] = useState<EditorProblem[]>([])
     const [requestError, setRequestError] = useState<string | null>(null)
     const [pendingAction, setPendingAction] = useState<PendingAction>(null)
     const [inspectorTab, setInspectorTab] =
@@ -127,9 +124,11 @@ export function RevisionStudio({
         () => new Set(['Project', 'Recruitment']),
     )
     const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
+    const monacoRef = useRef<Parameters<OnMount>[1] | null>(null)
     const hasRevisionResult = registration !== null
 
-    const outline = useMemo(() => getSchemaOutline(source), [source])
+    const analysis = useMemo(() => analyzeSchemaSource(source), [source])
+    const { outline, problems } = analysis
     const filteredOutline = useMemo(() => {
         const query = schemaQuery.trim().toLowerCase()
         if (!query) return outline
@@ -153,28 +152,38 @@ export function RevisionStudio({
     const hasModelId =
         Number.isInteger(parsedModelId) && parsedModelId > 0 && modelIdInput !== ''
 
-    const parseError = useMemo(() => {
-        try {
-            parseSchemaSource(source)
-            return null
-        } catch (error) {
-            return error instanceof Error ? error.message : 'Invalid schema source.'
-        }
-    }, [source])
-
     const totalFields = outline.reduce(
         (fieldCount, entity) => fieldCount + entity.fields.length,
         0,
     )
-    const validationProblemCount = problems.length + (parseError ? 1 : 0)
+    const validationProblemCount = problems.length
     const canSubmit =
-        hasModelId && !parseError && problems.length === 0 && pendingAction === null
+        hasModelId && analysis.schema !== null && pendingAction === null
+
+    const updateMarkers = useCallback((diagnostics: SchemaProblem[]) => {
+        const model = editorRef.current?.getModel()
+        const monaco = monacoRef.current
+        if (!model || !monaco) return
+        monaco.editor.setModelMarkers(model, 'burbot', diagnostics.map(({ message, location }) => ({
+            message,
+            severity: monaco.MarkerSeverity.Error,
+            source: 'Burbot',
+            startLineNumber: location.line,
+            startColumn: location.column,
+            endLineNumber: location.end_line,
+            endColumn: location.end_column,
+        })))
+    }, [])
+
+    useEffect(() => updateMarkers(problems), [problems, selectedModelId, updateMarkers])
 
     const saveDraft = useCallback(() => {
         try {
             localStorage.setItem(draftStorageKey(selectedModelId), source)
         } catch {
-            // The editor remains usable when storage is disabled.
+            setRequestError('Could not save this draft locally. Browser storage may be unavailable or full.')
+            setInspectorTab('changes')
+            return
         }
         setIsDirty(false)
         setLastSaved(new Date())
@@ -197,11 +206,11 @@ export function RevisionStudio({
             base: 'vs-dark',
             inherit: true,
             rules: [
-                {token: 'string.key.json', foreground: '91A7FF'},
-                {token: 'string.value.json', foreground: 'A7D7C5'},
+                {token: 'string', foreground: 'A7D7C5'},
                 {token: 'number', foreground: 'F0B77E'},
-                {token: 'keyword.json', foreground: 'D6A6F2'},
-                {token: 'delimiter.bracket.json', foreground: '798196'},
+                {token: 'keyword', foreground: 'D6A6F2'},
+                {token: 'comment', foreground: '778198'},
+                {token: 'delimiter', foreground: '798196'},
             ],
             colors: {
                 'editor.background': '#101217',
@@ -219,33 +228,12 @@ export function RevisionStudio({
             },
         })
 
-        monaco.json.jsonDefaults.setDiagnosticsOptions({
-            validate: true,
-            allowComments: false,
-            enableSchemaRequest: false,
-            schemas: [
-                {
-                    uri: 'https://burbot.local/schema-definition.json',
-                    fileMatch: ['*'],
-                    schema: BURBOT_EDITOR_SCHEMA,
-                },
-            ],
-        })
     }
 
-    const handleMount: OnMount = (editor) => {
+    const handleMount: OnMount = (editor, monaco) => {
         editorRef.current = editor
-    }
-
-    const handleValidate: OnValidate = (markers) => {
-        setProblems(
-            markers.map((marker) => ({
-                message: marker.message,
-                line: marker.startLineNumber,
-                column: marker.startColumn,
-                severity: marker.severity,
-            })),
-        )
+        monacoRef.current = monaco
+        updateMarkers(problems)
     }
 
     const updateSource = (value: string) => {
@@ -257,21 +245,11 @@ export function RevisionStudio({
     }
 
     const revealInEditor = (name: string, parentName?: string) => {
-        const lines = source.split('\n')
-        const parentLine = parentName
-            ? lines.findIndex((sourceLine) =>
-                sourceLine.includes(JSON.stringify(parentName)),
-            )
-            : 0
-        const line = lines.findIndex(
-            (sourceLine, index) =>
-                index >= Math.max(parentLine, 0) &&
-                sourceLine.includes(JSON.stringify(name)),
-        )
-        if (line === -1) return
-
-        editorRef.current?.revealLineInCenter(line + 1)
-        editorRef.current?.setPosition({lineNumber: line + 1, column: 1})
+        const entity = outline.find((item) => item.name === (parentName ?? name))
+        const location = parentName ? entity?.fields.find((field) => field.name === name)?.location : entity?.location
+        if (!location) return
+        editorRef.current?.revealLineInCenter(location.line)
+        editorRef.current?.setPosition({lineNumber: location.line, column: location.column})
         editorRef.current?.focus()
     }
 
@@ -297,10 +275,9 @@ export function RevisionStudio({
     const handleFormat = () => {
         try {
             updateSource(formatSchemaSource(source))
-            editorRef.current?.getAction('editor.action.formatDocument')?.run()
         } catch (error) {
             setRequestError(
-                error instanceof Error ? error.message : 'Could not format invalid JSON.',
+                error instanceof Error ? error.message : 'Could not format invalid schema source.',
             )
             setInspectorTab('problems')
         }
@@ -308,12 +285,11 @@ export function RevisionStudio({
 
     const handleReset = () => {
         if (
-            isDirty &&
             !window.confirm('Replace the current draft with the example schema?')
         ) {
             return
         }
-        updateSource(DEFAULT_SCHEMA_SOURCE)
+        updateSource(createDefaultSchemaSource())
     }
 
     const handleModelInput = (value: string) => {
@@ -406,6 +382,7 @@ export function RevisionStudio({
                         <span>MODEL</span>
                         <input
                             value={modelIdInput}
+                            disabled={pendingAction !== null}
                             onChange={(event) => handleModelInput(event.target.value)}
                             onBlur={commitModelId}
                             onKeyDown={(event) => {
@@ -446,6 +423,7 @@ export function RevisionStudio({
                                 type="button"
                                 onClick={handleAddEntity}
                                 aria-label="Add entity"
+                                disabled={pendingAction !== null}
                                 title="Add entity"
                             >
                                 <Plus size={15}/>
@@ -455,6 +433,7 @@ export function RevisionStudio({
                                 type="button"
                                 onClick={handleReset}
                                 aria-label="Reset example"
+                                disabled={pendingAction !== null}
                                 title="Reset example"
                             >
                                 <RefreshCw size={14}/>
@@ -474,8 +453,8 @@ export function RevisionStudio({
 
                     <div className="schema-file-row is-active">
                         <ChevronDown size={13}/>
-                        <FileJson size={15}/>
-                        <span>burbot-schema.json</span>
+                        <FileCode2 size={15}/>
+                        <span>burbot-schema.py</span>
                         {isDirty ? <span className="dirty-dot" title="Unsaved changes"/> : null}
                     </div>
 
@@ -485,10 +464,10 @@ export function RevisionStudio({
                     </div>
 
                     <div className="schema-outline">
-                        {filteredOutline.map((entity) => {
+                        {filteredOutline.map((entity, entityIndex) => {
                             const isExpanded = expandedEntities.has(entity.name)
                             return (
-                                <div className="outline-entity" key={entity.name}>
+                                <div className="outline-entity" key={`${entity.name}-${entityIndex}`}>
                                     <div className="outline-row entity-row">
                                         <button
                                             className="outline-chevron"
@@ -514,11 +493,11 @@ export function RevisionStudio({
                                     </div>
                                     {isExpanded ? (
                                         <div className="outline-fields">
-                                            {entity.fields.map((field) => (
+                                            {entity.fields.map((field, fieldIndex) => (
                                                 <button
                                                     type="button"
                                                     className="outline-field"
-                                                    key={`${entity.name}.${field.name}`}
+                                                    key={`${entity.name}.${field.name}-${fieldIndex}`}
                                                     onClick={() => revealInEditor(field.name, entity.name)}
                                                 >
                                                     {field.type === 'Reference' ? (
@@ -541,7 +520,7 @@ export function RevisionStudio({
                                 <Code2 size={18}/>
                                 <span>
                   {outline.length === 0
-                      ? 'Fix the JSON to restore the outline.'
+                      ? 'Declare a class to start the outline.'
                       : 'No schema items match this search.'}
                 </span>
                             </div>
@@ -575,12 +554,12 @@ export function RevisionStudio({
                 <section className="editor-pane" aria-label="Schema editor">
                     <div className="editor-tabs">
                         <div className="editor-tab is-active">
-                            <FileJson size={14}/>
-                            <span>burbot-schema.json</span>
+                            <FileCode2 size={14}/>
+                            <span>burbot-schema.py</span>
                             {isDirty ? <span className="tab-dirty">●</span> : <span className="tab-close">×</span>}
                         </div>
                         <div className="editor-tools">
-                            <button type="button" onClick={handleFormat}>
+                            <button type="button" onClick={handleFormat} disabled={pendingAction !== null}>
                                 <Braces size={14}/>
                                 Format
                             </button>
@@ -602,13 +581,12 @@ export function RevisionStudio({
 
                     <div className="monaco-host">
                         <Editor
-                            path="burbot-schema.json"
-                            language="json"
+                            path={`file:///models/${selectedModelId ?? 'unbound'}/burbot-schema.py`}
+                            language={SCHEMA_LANGUAGE_ID}
                             theme="burbot-night"
                             value={source}
                             beforeMount={handleBeforeMount}
                             onMount={handleMount}
-                            onValidate={handleValidate}
                             onChange={(value) => updateSource(value ?? '')}
                             loading={
                                 <div className="editor-loading">
@@ -617,6 +595,7 @@ export function RevisionStudio({
                                 </div>
                             }
                             options={{
+                                readOnly: pendingAction !== null,
                                 automaticLayout: true,
                                 bracketPairColorization: {enabled: true},
                                 cursorBlinking: 'smooth',
@@ -633,7 +612,9 @@ export function RevisionStudio({
                                 renderLineHighlight: 'all',
                                 scrollBeyondLastLine: false,
                                 smoothScrolling: true,
-                                tabSize: 2,
+                                tabSize: 4,
+                                insertSpaces: true,
+                                quickSuggestions: { other: true, comments: false, strings: true },
                                 wordWrap: 'off',
                             }}
                         />
@@ -651,7 +632,7 @@ export function RevisionStudio({
                                     {validationProblemCount === 1 ? 'problem' : 'problems'}
                                 </button>
                             )}
-                            <span>JSON</span>
+                            <span>Burbot · Python</span>
                             <span>UTF-8</span>
                         </div>
                         <div>
@@ -771,8 +752,7 @@ export function RevisionStudio({
                                         <GitBranch size={24}/>
                                         <strong>Create a revision</strong>
                                         <p>
-                                            The current generated API returns the change summary after
-                                            registering the schema revision.
+                                            Create a revision to apply this schema and see its changes.
                                         </p>
                                         <button
                                             className="secondary-button"
@@ -808,30 +788,16 @@ export function RevisionStudio({
                             </>
                         ) : (
                             <div className="problems-panel">
-                                {parseError ? (
-                                    <button
-                                        type="button"
-                                        className="problem-row"
-                                        onClick={() => editorRef.current?.focus()}
-                                    >
-                                        <XCircle size={14}/>
-                                        <div>
-                                            <strong>{parseError}</strong>
-                                            <span>Schema parser</span>
-                                        </div>
-                                    </button>
-                                ) : null}
-
                                 {problems.map((problem, index) => (
                                     <button
                                         type="button"
                                         className="problem-row"
-                                        key={`${problem.line}-${problem.column}-${index}`}
+                                        key={`${problem.location.line}-${problem.location.column}-${index}`}
                                         onClick={() => {
-                                            editorRef.current?.revealLineInCenter(problem.line)
+                                            editorRef.current?.revealLineInCenter(problem.location.line)
                                             editorRef.current?.setPosition({
-                                                lineNumber: problem.line,
-                                                column: problem.column,
+                                                lineNumber: problem.location.line,
+                                                column: problem.location.column,
                                             })
                                             editorRef.current?.focus()
                                         }}
@@ -840,7 +806,7 @@ export function RevisionStudio({
                                         <div>
                                             <strong>{problem.message}</strong>
                                             <span>
-                        Ln {problem.line}, Col {problem.column}
+                        Ln {problem.location.line}, Col {problem.location.column}
                       </span>
                                         </div>
                                     </button>
@@ -850,7 +816,7 @@ export function RevisionStudio({
                                     <div className="inspector-empty problems-empty">
                                         <Check size={24}/>
                                         <strong>No problems detected</strong>
-                                        <p>The draft matches the Burbot schema contract.</p>
+                                        <p>The draft passes local Burbot checks. The backend validates it again when you create a revision.</p>
                                     </div>
                                 ) : null}
                             </div>
