@@ -1,13 +1,15 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import {
   Boxes,
   CircleHelp,
   Cloud,
+  Database,
   GitBranch,
   Settings,
   TerminalSquare,
 } from 'lucide-react'
 import type { BusinessModel } from './api/models'
+import { business } from './api/business'
 import { ModelsView } from './views/ModelsView'
 import './App.css'
 
@@ -16,33 +18,29 @@ const RevisionStudio = lazy(() =>
     default: module.RevisionStudio,
   })),
 )
+const DataView = lazy(() =>
+  import('./views/DataView').then((module) => ({ default: module.DataView })),
+)
 
-type WorkspaceView = 'models' | 'revisions'
-
-const MODEL_STORAGE_KEY = 'burbot:recent-models'
+type WorkspaceView = 'models' | 'revisions' | 'objects'
 
 function viewFromLocation(): WorkspaceView {
+  if (window.location.hash === '#/objects') return 'objects'
   return window.location.hash === '#/revisions' ? 'revisions' : 'models'
-}
-
-function readModels(): BusinessModel[] {
-  try {
-    const stored = localStorage.getItem(MODEL_STORAGE_KEY)
-    if (!stored) return []
-    const parsed: unknown = JSON.parse(stored)
-    return Array.isArray(parsed) ? (parsed as BusinessModel[]) : []
-  } catch {
-    return []
-  }
 }
 
 function App() {
   const [activeView, setActiveView] = useState<WorkspaceView>(viewFromLocation)
-  const [models, setModels] = useState<BusinessModel[]>(readModels)
-  const [selectedModelId, setSelectedModelId] = useState<number | null>(() => {
-    const firstModel = readModels().find((model) => model.id != null)
-    return firstModel?.id ?? null
-  })
+  const [models, setModels] = useState<BusinessModel[]>([])
+  const [modelsLoading, setModelsLoading] = useState(true)
+  const [modelsError, setModelsError] = useState<string | null>(null)
+  const [modelsRefresh, setModelsRefresh] = useState(0)
+  const [selectedModelId, setSelectedModelId] = useState<number | null>(null)
+  const refreshModels = useCallback(() => {
+    setModelsLoading(true)
+    setModelsError(null)
+    setModelsRefresh((value) => value + 1)
+  }, [])
 
   useEffect(() => {
     const handleHashChange = () => setActiveView(viewFromLocation())
@@ -51,15 +49,32 @@ function App() {
   }, [])
 
   useEffect(() => {
-    try {
-      localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(models))
-    } catch {
-      // Recent models are an enhancement; the API workflow still works without it.
-    }
-  }, [models])
+    const controller = new AbortController()
+    business
+      .models(controller.signal)
+      .then((items) => {
+        if (controller.signal.aborted) return
+        setModels(items)
+        setSelectedModelId((id) =>
+          items.some((model) => model.id === id) ? id : (items[0]?.id ?? null),
+        )
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted)
+          setModelsError(
+            error instanceof Error
+              ? error.message
+              : 'Could not load business models.',
+          )
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setModelsLoading(false)
+      })
+    return () => controller.abort()
+  }, [modelsRefresh])
 
   const navigate = (view: WorkspaceView) => {
-    const hash = view === 'revisions' ? '#/revisions' : '#/models'
+    const hash = `#/${view}`
     if (window.location.hash !== hash) window.location.hash = hash
     setActiveView(view)
   }
@@ -68,17 +83,26 @@ function App() {
     setModels((current) => [
       model,
       ...current.filter(
-        (candidate) =>
-          candidate.id !== model.id && candidate.key !== model.key,
+        (candidate) => candidate.id !== model.id && candidate.key !== model.key,
       ),
     ])
     setSelectedModelId(model.id ?? null)
     navigate('revisions')
+    refreshModels()
   }
 
   const handleOpenRevision = (model: BusinessModel) => {
     setSelectedModelId(model.id ?? null)
     navigate('revisions')
+  }
+  const handleModelUpdated = (model: BusinessModel) =>
+    setModels((items) =>
+      items.map((item) => (item.id === model.id ? model : item)),
+    )
+  const handleModelDeleted = (id: number) => {
+    setModels((items) => items.filter((model) => model.id !== id))
+    if (selectedModelId === id) setSelectedModelId(null)
+    refreshModels()
   }
 
   return (
@@ -104,7 +128,9 @@ function App() {
           <span>
             {activeView === 'models'
               ? 'Business models'
-              : 'Revision workspace'}
+              : activeView === 'objects'
+                ? 'Business objects'
+                : 'Program workspace'}
           </span>
           <span className="title-separator">—</span>
           <span className="title-project">Burbot</span>
@@ -145,6 +171,15 @@ function App() {
             >
               <GitBranch size={21} strokeWidth={1.7} />
             </button>
+            <button
+              type="button"
+              className={activeView === 'objects' ? 'is-active' : ''}
+              onClick={() => navigate('objects')}
+              aria-label="Business objects"
+              data-tooltip="Business objects"
+            >
+              <Database size={21} strokeWidth={1.7} />
+            </button>
           </div>
 
           <div className="activity-secondary">
@@ -174,6 +209,11 @@ function App() {
               selectedModelId={selectedModelId}
               onModelCreated={handleModelCreated}
               onOpenRevision={handleOpenRevision}
+              onModelUpdated={handleModelUpdated}
+              onModelDeleted={handleModelDeleted}
+              loading={modelsLoading}
+              error={modelsError}
+              onRefresh={refreshModels}
             />
           ) : (
             <Suspense
@@ -188,11 +228,22 @@ function App() {
                 </div>
               }
             >
-              <RevisionStudio
-                models={models}
-                selectedModelId={selectedModelId}
-                onModelIdChange={setSelectedModelId}
-              />
+              {activeView === 'objects' ? (
+                <DataView
+                  key={selectedModelId ?? 'unbound'}
+                  models={models}
+                  selectedModelId={selectedModelId}
+                  onModelIdChange={setSelectedModelId}
+                />
+              ) : (
+                <RevisionStudio
+                  key={selectedModelId ?? 'unbound'}
+                  models={models}
+                  selectedModelId={selectedModelId}
+                  onModelIdChange={setSelectedModelId}
+                  onApplied={refreshModels}
+                />
+              )}
             </Suspense>
           )}
         </div>

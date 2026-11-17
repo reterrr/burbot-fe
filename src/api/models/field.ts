@@ -9,6 +9,11 @@ import type { Type } from './type';
 
 export interface Field {
   name: string;
+  /**
+     * @minLength 1
+     * @maxLength 150
+     */
+  persistent_key: string;
   type: Type;
   location: SourceLocation;
   nullable?: boolean;
@@ -16,6 +21,7 @@ export interface Field {
   index?: boolean;
   primary_key?: boolean;
   default?: unknown | null;
+  has_default?: boolean;
   min_length?: number | null;
   max_length?: number | null;
   pattern?: string | null;
@@ -26,4 +32,6 @@ export interface Field {
   precision?: number | null;
   scale?: number | null;
   reference?: string | null;
+  enum_type?: string | null;
+  enum_values?: (string | number)[] | null;
 }

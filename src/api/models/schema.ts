@@ -5,7 +5,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Entity } from './entity';
+import type { EnumDefinition } from './enumDefinition';
 
 export interface Schema {
   entities?: Entity[];
+  enums?: EnumDefinition[];
 }

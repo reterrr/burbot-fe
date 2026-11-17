@@ -15,14 +15,18 @@ import {
   Sparkles,
 } from 'lucide-react'
 import type { BusinessModel } from '../api/models'
-import { createBusinessModelApiV1BusinessModelsPost } from '../api/generated/business/business'
-import { formatApiError } from '../lib/api-error'
+import { business } from '../api/business'
 
 interface ModelsViewProps {
   models: BusinessModel[]
   selectedModelId: number | null
   onModelCreated: (model: BusinessModel) => void
   onOpenRevision: (model: BusinessModel) => void
+  onModelUpdated: (model: BusinessModel) => void
+  onModelDeleted: (id: number) => void
+  loading: boolean
+  error: string | null
+  onRefresh: () => void
 }
 
 function toModelKey(value: string): string {
@@ -38,6 +42,11 @@ export function ModelsView({
   selectedModelId,
   onModelCreated,
   onOpenRevision,
+  onModelUpdated,
+  onModelDeleted,
+  loading,
+  error: loadError,
+  onRefresh,
 }: ModelsViewProps) {
   const [name, setName] = useState('')
   const [key, setKey] = useState('')
@@ -46,6 +55,18 @@ export function ModelsView({
   const [query, setQuery] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editing, setEditing] = useState<BusinessModel | null>(null)
+  const [metadata, setMetadata] = useState('{}')
+
+  const editModel = (model: BusinessModel | null) => {
+    setEditing(model)
+    setName(model?.name ?? '')
+    setKey(model?.key ?? '')
+    setDescription(model?.description ?? '')
+    setMetadata(JSON.stringify(model?.metadata_json ?? {}, null, 2))
+    setKeyEdited(!!model)
+    setError(null)
+  }
 
   const filteredModels = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -65,35 +86,66 @@ export function ModelsView({
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!name.trim() || !key.trim()) return
+    if (isCreating || !name.trim() || !key.trim()) return
 
     setIsCreating(true)
     setError(null)
 
     try {
-      const response = await createBusinessModelApiV1BusinessModelsPost({
+      const metadataValue: unknown = JSON.parse(metadata)
+      if (
+        typeof metadataValue !== 'object' ||
+        metadataValue === null ||
+        Array.isArray(metadataValue)
+      )
+        throw new Error('Metadata must be a JSON object.')
+      if (editing?.id != null) {
+        const model = await business.updateModel(editing.id, {
+          name: name.trim(),
+          description: description.trim() || null,
+          metadata_json: metadataValue as Record<string, unknown>,
+        })
+        onModelUpdated(model)
+        setEditing(model)
+        return
+      }
+      const model = await business.createModel({
         name: name.trim(),
         key: key.trim(),
         description: description.trim() || null,
-        metadata_json: { created_from: 'burbot-studio' },
+        metadata_json: metadataValue as Record<string, unknown>,
       })
-
-      if (response.status !== 201) {
-        setError(
-          formatApiError(
-            response.data,
-            `The API returned status ${response.status}.`,
-          ),
-        )
-        return
-      }
-
-      onModelCreated(response.data)
+      onModelCreated(model)
     } catch (requestError) {
       setError(
         requestError instanceof Error
-          ? `Could not reach the Burbot API. ${requestError.message}`
+          ? requestError.message
           : 'Could not reach the Burbot API.',
+      )
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const deleteModel = async () => {
+    if (
+      editing?.id == null ||
+      !window.confirm(
+        `Delete model “${editing.name}”? The backend only permits deleting empty models.`,
+      )
+    )
+      return
+    setIsCreating(true)
+    setError(null)
+    try {
+      await business.deleteModel(editing.id)
+      onModelDeleted(editing.id)
+      editModel(null)
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : 'Could not delete the model.',
       )
     } finally {
       setIsCreating(false)
@@ -102,14 +154,20 @@ export function ModelsView({
 
   return (
     <div className="models-layout">
-      <aside className="explorer-pane models-explorer" aria-label="Business models">
+      <aside
+        className="explorer-pane models-explorer"
+        aria-label="Business models"
+      >
         <div className="pane-title-row">
           <span>BUSINESS MODELS</span>
           <button
             className="icon-button"
             type="button"
             aria-label="New model"
-            onClick={() => document.getElementById('model-name')?.focus()}
+            onClick={() => {
+              editModel(null)
+              document.getElementById('model-name')?.focus()
+            }}
           >
             <Plus size={15} />
           </button>
@@ -132,13 +190,27 @@ export function ModelsView({
         </div>
 
         <div className="model-tree">
+          {loading && (
+            <p className="panel-note" role="status">
+              Loading models…
+            </p>
+          )}
+          {loadError && (
+            <div className="panel-note" role="alert">
+              {loadError}
+              <button className="secondary-button" onClick={onRefresh}>
+                Retry
+              </button>
+            </div>
+          )}
           {filteredModels.length > 0 ? (
             filteredModels.map((model) => (
               <button
                 type="button"
                 className={`tree-model ${selectedModelId === model.id ? 'is-selected' : ''}`}
                 key={model.id ?? model.key}
-                onClick={() => onOpenRevision(model)}
+                onClick={() => editModel(model)}
+                disabled={isCreating}
               >
                 <Database size={15} />
                 <span>
@@ -150,7 +222,9 @@ export function ModelsView({
           ) : (
             <div className="tree-empty">
               <Box size={18} />
-              <span>{models.length === 0 ? 'No models yet' : 'No matches'}</span>
+              <span>
+                {models.length === 0 ? 'No models yet' : 'No matches'}
+              </span>
             </div>
           )}
         </div>
@@ -161,7 +235,14 @@ export function ModelsView({
             <span>API ENDPOINT</span>
             <code>/api/v1/business/models</code>
           </div>
-          <span className="connection-dot" aria-label="API connection" />
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onRefresh}
+            aria-label="Refresh models"
+          >
+            <Server size={14} />
+          </button>
         </div>
       </aside>
 
@@ -171,12 +252,29 @@ export function ModelsView({
             <Boxes size={14} />
             <span>Business models</span>
             <ChevronRight size={13} />
-            <strong>New model</strong>
+            <strong>{editing ? 'Manage model' : 'New model'}</strong>
           </div>
           <div className="toolbar-hint">
-            <span className="keycap">⌘</span>
-            <span className="keycap">K</span>
-            <span>Commands</span>
+            <select
+              className="workspace-select"
+              aria-label="Manage business model"
+              value={editing?.id ?? ''}
+              disabled={isCreating}
+              onChange={(event) =>
+                editModel(
+                  models.find(
+                    (model) => model.id === Number(event.target.value),
+                  ) ?? null,
+                )
+              }
+            >
+              <option value="">New model</option>
+              {models.map((model) => (
+                <option key={model.id} value={model.id!}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -185,9 +283,9 @@ export function ModelsView({
             <div className="stage-heading">
               <div className="eyebrow">
                 <Sparkles size={14} />
-                NEW NAMESPACE
+                {editing ? 'MODEL SETTINGS' : 'NEW NAMESPACE'}
               </div>
-              <h1>Create a business model</h1>
+              <h1>{editing ? editing.name : 'Create a business model'}</h1>
               <p>
                 Start with a stable namespace. Entities, fields, relations, and
                 every future schema revision will live inside it.
@@ -214,6 +312,8 @@ export function ModelsView({
                     autoComplete="off"
                     required
                     autoFocus
+                    maxLength={255}
+                    disabled={isCreating}
                   />
                   <small>Human-readable name shown across the workspace.</small>
                 </label>
@@ -232,9 +332,24 @@ export function ModelsView({
                       placeholder="recruitment_operations"
                       pattern="[a-z0-9_]+"
                       required
+                      maxLength={150}
+                      disabled={!!editing || isCreating}
                     />
                   </div>
-                  <small>Lowercase letters, numbers, and underscores only.</small>
+                  <small>
+                    Lowercase letters, numbers, and underscores only.
+                  </small>
+                </label>
+
+                <label className="field-label" htmlFor="model-metadata">
+                  Metadata JSON
+                  <textarea
+                    id="model-metadata"
+                    value={metadata}
+                    onChange={(event) => setMetadata(event.target.value)}
+                    rows={3}
+                    disabled={isCreating}
+                  />
                 </label>
 
                 <label className="field-label" htmlFor="model-description">
@@ -258,7 +373,9 @@ export function ModelsView({
                 <div className="form-actions">
                   <div className="submit-explainer">
                     <Check size={14} />
-                    Opens a clean revision draft next
+                    {editing
+                      ? 'The model key stays stable'
+                      : 'Opens a program draft next'}
                   </div>
                   <button
                     className="primary-button create-button"
@@ -270,10 +387,30 @@ export function ModelsView({
                     ) : (
                       <Plus size={16} />
                     )}
-                    Create model
+                    {editing ? 'Save model' : 'Create model'}
                     {!isCreating ? <ArrowRight size={15} /> : null}
                   </button>
                 </div>
+                {editing && (
+                  <div className="form-actions">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      disabled={isCreating}
+                      onClick={() => onOpenRevision(editing)}
+                    >
+                      Open program studio
+                    </button>
+                    <button
+                      className="secondary-button danger-text"
+                      type="button"
+                      disabled={isCreating}
+                      onClick={() => void deleteModel()}
+                    >
+                      Delete empty model
+                    </button>
+                  </div>
+                )}
               </form>
 
               <aside className="model-blueprint" aria-label="Model structure">

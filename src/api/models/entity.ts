@@ -10,6 +10,10 @@ import type { SourceLocation } from './sourceLocation';
 export interface Entity {
   name: string;
   location: SourceLocation;
+  /**
+     * @minLength 1
+     * @maxLength 54
+     */
   tablename: string;
   fields?: Field[];
 }
