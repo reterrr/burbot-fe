@@ -7,7 +7,7 @@
 import type { BusinessModelMetadataJson } from './businessModelMetadataJson';
 
 /**
- * Top-level logical namespace for a business schema.
+ * Top-level logical namespace for business schemas.
  */
 export interface BusinessModel {
   id?: number | null;

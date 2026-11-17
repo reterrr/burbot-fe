@@ -7,6 +7,14 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    server: {
+      proxy: {
+        '/api': {
+          target: env.BURBOT_API_TARGET || 'http://localhost:8000',
+          changeOrigin: true,
+        },
+      },
+    },
     define: {
       'globalThis.__BURBOT_API_BASE_URL__': JSON.stringify(
         env.VITE_API_BASE_URL ?? '',
