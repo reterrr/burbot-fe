@@ -53,8 +53,8 @@ import {
     migrateLegacyDraft,
     parseSchemaSource,
 } from '../lib/schema'
-import { SCHEMA_LANGUAGE_ID } from '../lib/schema-language'
-import type { SchemaProblem } from '../lib/sema'
+import {SCHEMA_LANGUAGE_ID} from '../lib/schema-language'
+import type {SchemaProblem} from '../lib/sema'
 
 interface RevisionStudioProps {
     models: BusinessModel[]
@@ -62,7 +62,7 @@ interface RevisionStudioProps {
     onModelIdChange: (modelId: number | null) => void
 }
 
-type InspectorTab = 'changes' | 'problems'
+type InspectorTab = 'changes' | 'problems' | 'revisions'
 type PendingAction = 'register' | null
 
 function draftStorageKey(modelId: number | null): string {
@@ -109,6 +109,7 @@ export function RevisionStudio({
     const [modelIdInput, setModelIdInput] = useState(
         selectedModelId?.toString() ?? '',
     )
+    const [revisions_count, setRevisionsCount] = useState(0)
     const [reason, setReason] = useState('')
     const [schemaQuery, setSchemaQuery] = useState('')
     const [isDirty, setIsDirty] = useState(false)
@@ -128,7 +129,7 @@ export function RevisionStudio({
     const hasRevisionResult = registration !== null
 
     const analysis = useMemo(() => analyzeSchemaSource(source), [source])
-    const { outline, problems } = analysis
+    const {outline, problems} = analysis
     const filteredOutline = useMemo(() => {
         const query = schemaQuery.trim().toLowerCase()
         if (!query) return outline
@@ -160,11 +161,38 @@ export function RevisionStudio({
     const canSubmit =
         hasModelId && analysis.schema !== null && pendingAction === null
 
+    useEffect(() => {
+        if (selectedModelId === null) {
+            setRevisionsCount(0)
+            return
+        }
+
+        const loadRevisionCount = async () => {
+            try {
+                const response = await fetch(
+                    `http://localhost:8001/api/v1/business/models/${selectedModelId}/revisions/count`,
+                )
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`)
+                }
+
+                const count: number = await response.json()
+
+                setRevisionsCount(count)
+            } catch (error) {
+                console.error('Could not load revision count', error)
+            }
+        }
+
+        void loadRevisionCount()
+    }, [selectedModelId])
+
     const updateMarkers = useCallback((diagnostics: SchemaProblem[]) => {
         const model = editorRef.current?.getModel()
         const monaco = monacoRef.current
         if (!model || !monaco) return
-        monaco.editor.setModelMarkers(model, 'burbot', diagnostics.map(({ message, location }) => ({
+        monaco.editor.setModelMarkers(model, 'burbot', diagnostics.map(({message, location}) => ({
             message,
             severity: monaco.MarkerSeverity.Error,
             source: 'Burbot',
@@ -614,7 +642,7 @@ export function RevisionStudio({
                                 smoothScrolling: true,
                                 tabSize: 4,
                                 insertSpaces: true,
-                                quickSuggestions: { other: true, comments: false, strings: true },
+                                quickSuggestions: {other: true, comments: false, strings: true},
                                 wordWrap: 'off',
                             }}
                         />
@@ -669,6 +697,16 @@ export function RevisionStudio({
                             {validationProblemCount > 0 ? (
                                 <span className="problem-badge">{validationProblemCount}</span>
                             ) : null}
+                        </button>
+                        <button
+                            type="button"
+                            className={inspectorTab === 'revisions' ? 'is-active' : ''}
+                            onClick={() => setInspectorTab('revisions')}
+                        >
+                            REVISIONS
+                            {(
+                                <span className="revisions-count-badge">{revisions_count}</span>
+                            )}
                         </button>
                     </div>
 
@@ -816,7 +854,8 @@ export function RevisionStudio({
                                     <div className="inspector-empty problems-empty">
                                         <Check size={24}/>
                                         <strong>No problems detected</strong>
-                                        <p>The draft passes local Burbot checks. The backend validates it again when you create a revision.</p>
+                                        <p>The draft passes local Burbot checks. The backend validates it again when you
+                                            create a revision.</p>
                                     </div>
                                 ) : null}
                             </div>
