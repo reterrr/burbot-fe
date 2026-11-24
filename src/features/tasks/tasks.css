@@ -1,0 +1,229 @@
+.task-workspace {
+  height: 100%;
+  overflow: auto;
+  background: var(--bg-deep);
+}
+
+.task-content {
+  min-width: 0;
+}
+
+.task-page {
+  width: min(100%, 1540px);
+  margin-inline: auto;
+  padding: clamp(16px, 3.4vw, 42px);
+}
+
+.task-header {
+  margin-bottom: 26px;
+}
+.task-header-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.task-header h1.ant-typography {
+  margin: 0;
+  font-size: clamp(25px, 3vw, 35px);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+.task-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 7px;
+  color: var(--text-soft);
+}
+.task-header-actions {
+  display: flex;
+  align-items: center;
+}
+.task-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+
+.task-page a,
+.task-stack a {
+  color: #b5aaff;
+  text-decoration: none;
+}
+.task-page a:hover,
+.task-stack a:hover {
+  color: #e1d9ff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.task-page a:focus-visible,
+.task-stack a:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+
+.task-filters,
+.task-history-filter {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+}
+.task-filters .ant-form-item,
+.task-history-filter .ant-form-item {
+  min-width: 0;
+  flex: 1 1 128px;
+  margin: 0;
+}
+.task-history-filter {
+  max-width: 450px;
+}
+.task-filter-actions {
+  display: flex;
+  gap: 5px;
+}
+.task-filter-actions,
+.task-history-filter > button {
+  margin-top: 26px;
+}
+
+.task-table {
+  min-width: 0;
+}
+.task-table .ant-table {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.task-table .ant-table-cell {
+  overflow-wrap: anywhere;
+}
+.task-table h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+.task-clickable-row {
+  cursor: pointer;
+}
+.task-row-title {
+  font-weight: 600;
+}
+.task-mono {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.task-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  gap: 10px;
+  color: var(--text-soft);
+}
+
+.task-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(225px, 29%);
+  gap: 16px;
+  align-items: start;
+}
+.task-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.task-description {
+  margin: 14px 0 0 !important;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.task-review-link {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.task-references {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.task-references li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+}
+.task-references li + li {
+  border-top: 1px solid var(--border);
+}
+.task-references small {
+  color: var(--text-soft);
+  display: block;
+}
+
+.task-json,
+.task-evidence-text,
+.task-evidence-values {
+  margin: 0;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.task-json {
+  font: 12px/1.6 var(--mono);
+}
+.task-evidence-values {
+  padding-inline-start: 22px;
+}
+.task-evidence-values li + li {
+  margin-top: 8px;
+}
+.task-evidence-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17px minmax(0, 1fr);
+  gap: 9px;
+}
+.task-evidence-arrow {
+  align-self: center;
+  color: var(--text-soft);
+}
+.task-evidence-grid.is-changed > .ant-card:first-child {
+  border-top-color: #ab7d69;
+}
+.task-evidence-grid.is-changed > .ant-card:last-child {
+  border-top-color: var(--green);
+}
+
+@media (max-width: 940px) {
+  .task-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .task-header {
+    margin-bottom: 17px;
+  }
+  .task-evidence-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .task-evidence-arrow {
+    display: none;
+  }
+  .task-filter-actions {
+    margin-top: 0;
+  }
+}

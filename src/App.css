@@ -192,7 +192,7 @@
   padding: 5px 0;
 }
 
-.activity-bar button {
+.activity-bar :is(button, a) {
   position: relative;
   width: 49px;
   height: 46px;
@@ -205,17 +205,17 @@
   cursor: pointer;
 }
 
-.activity-bar button:hover:not(:disabled) {
+.activity-bar :is(button, a):hover:not(:disabled) {
   color: #c8cdd8;
   background: rgba(255, 255, 255, 0.025);
 }
 
-.activity-bar button.is-active {
+.activity-bar :is(button, a).is-active {
   color: #e7e4ff;
   background: linear-gradient(90deg, rgba(139, 124, 255, 0.1), transparent);
 }
 
-.activity-bar button.is-active::before {
+.activity-bar :is(button, a).is-active::before {
   content: '';
   position: absolute;
   inset: 8px auto 8px 0;
@@ -230,7 +230,7 @@
   opacity: 0.58;
 }
 
-.activity-bar button::after {
+.activity-bar :is(button, a)::after {
   content: attr(data-tooltip);
   position: absolute;
   z-index: 100;
@@ -249,9 +249,34 @@
   transition: 120ms ease;
 }
 
-.activity-bar button:hover::after {
+.activity-bar :is(button, a):is(:hover, :focus-visible)::after {
   opacity: 1;
   transform: translate(0, -50%);
+}
+
+.activity-tasks {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
+.activity-task-count {
+  position: absolute;
+  top: 5px;
+  right: 3px;
+  min-width: 16px;
+  padding: 0 3px;
+  border: 1px solid #111318;
+  border-radius: 6px;
+  color: #151126;
+  background: #aa9cff;
+  font: 700 9px/15px var(--mono);
+  text-align: center;
+}
+
+@media (max-width: 620px) {
+  .app-titlebar { grid-template-columns: 1fr auto; }
+  .titlebar-center { display: none; }
 }
 
 .view-host {
