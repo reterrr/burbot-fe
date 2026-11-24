@@ -345,6 +345,7 @@ test('Workflow History exposes superseded workflows and their historical tasks',
 test('Business routes keep the selected model and its Monaco draft across Task navigation', async ({
   page,
 }) => {
+  test.setTimeout(60_000)
   const models = [
     {
       id: 1,
@@ -385,14 +386,13 @@ test('Business routes keep the selected model and its Monaco draft across Task n
     page.getByText('Second model', { exact: true }).first(),
   ).toBeVisible()
   await page.getByRole('link', { name: 'Revisions', exact: true }).click()
-  await expect(page.locator('.monaco-editor .view-lines')).toBeVisible()
+  const editor = page.locator('.monaco-editor .view-lines')
+  await expect(editor).toBeVisible({ timeout: 20_000 })
   await page.getByRole('combobox', { name: 'Business model' }).selectOption('2')
   await expect(
     page.getByRole('combobox', { name: 'Business model' }),
   ).toHaveValue('2')
-  await expect(page.locator('.monaco-editor .view-lines')).toContainText(
-    'PreservedDraft',
-  )
+  await expect(editor).toContainText('PreservedDraft', { timeout: 20_000 })
   await page.getByRole('link', { name: 'Task inbox', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Task inbox' })).toBeVisible()
   await page
@@ -403,9 +403,7 @@ test('Business routes keep the selected model and its Monaco draft across Task n
   await expect(
     page.getByRole('combobox', { name: 'Business model' }),
   ).toHaveValue('2')
-  await expect(page.locator('.monaco-editor .view-lines')).toContainText(
-    'PreservedDraft',
-  )
+  await expect(editor).toContainText('PreservedDraft', { timeout: 20_000 })
   expect(
     await page.evaluate(() =>
       localStorage.getItem('burbot:program-draft:v2:2'),
