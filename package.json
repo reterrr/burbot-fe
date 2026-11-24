@@ -8,20 +8,29 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "node --test tests/*.test.mjs",
+    "test:ui": "playwright test",
+    "test:tasks-live": "node tests/tasks-live.mjs",
     "test:backend": "node tests/backend-conformance.mjs",
     "preview": "vite preview",
     "api:generate": "orval"
   },
   "dependencies": {
+    "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@monaco-editor/react": "^4.7.0",
+    "@refinedev/antd": "^6.0.3",
+    "@refinedev/core": "^5.0.12",
+    "@refinedev/react-router": "^2.0.4",
     "@tanstack/react-query": "^5.102.8",
+    "antd": "^5.29.3",
     "lucide-react": "^1.40.0",
     "monaco-editor": "^0.56.0",
     "py-ast": "^1.16.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-router": "^7.18.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

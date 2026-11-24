@@ -2,8 +2,7 @@ type BurbotGlobal = typeof globalThis & {
   __BURBOT_API_BASE_URL__?: string
 }
 
-const apiBaseUrl =
-  ((globalThis as BurbotGlobal).__BURBOT_API_BASE_URL__ ?? '')
+const apiBaseUrl = ((globalThis as BurbotGlobal).__BURBOT_API_BASE_URL__ ?? '')
   .trim()
   .replace(/\/+$/, '')
 
@@ -27,7 +26,14 @@ export async function apiClient<T>(
   path: string,
   options: RequestInit,
 ): Promise<T> {
-  const response = await fetch(getRequestUrl(path), options)
+  return sameOriginApiClient<T>(getRequestUrl(path), options)
+}
+
+export async function sameOriginApiClient<T>(
+  path: string,
+  options: RequestInit,
+): Promise<T> {
+  const response = await fetch(path, options)
   const data = await getResponseBody(response)
 
   return {

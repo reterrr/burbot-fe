@@ -5,6 +5,16 @@ contract is exported from `reterrr/burbot` commit
 `d735435f272b85a44655802f8eeaecf1f5eec419` (the revision is also recorded in
 `openapi.json` under `info.x-backend-revision`).
 
+## Application architecture
+
+`src/main.tsx` connects the shared Ant Design theme and notifications to Refine.
+Refine owns the TanStack Query client, resource data, and mutations. The
+React Router hash routes preserve `#/models`, `#/revisions`, and `#/objects`.
+The shared Studio shell retains the selected model while users switch sections.
+The existing Business views, generated Orval client, and Monaco draft keys
+remain in their original modules. Ant Design uses component-scoped styles and
+the dark and compact algorithms configured in `src/app/studio.ts`.
+
 ## Workflows
 
 - **Business models:** load models from the server, create a namespace, edit its
@@ -79,6 +89,50 @@ The current backend persists definition code versions and returns `code_version`
 on execution, but exposes no HTTP routes to browse/restore that source history;
 the frontend therefore uses the available schema revision endpoints.
 
+## Task management
+
+The Studio includes four hash routes for local development with the matching
+Burbot Task API.
+
+| Route | Workflow |
+| --- | --- |
+| `#/tasks` | Actionable Inbox, count badge, server filters, pagination, and status actions |
+| `#/tasks/:id` | Task details, workflow and evidence references, metadata, and available transitions |
+| `#/tasks/:id/review` | Canonical value, previous/current evidence, and source references when a review gateway is configured |
+| `#/tasks/history?source=:id` | Paginated source workflows. Add `workflow=:id` to open its details and historical tasks |
+
+The task adapter in `src/features/tasks/api` reuses the shared HTTP transport
+and maps inbox `items[].task.id` into Refine resource IDs. The adapter uses the
+backend totals, passes `offset` and `limit`, and verifies `applied_filters`
+before displaying filtered results. `allowed_statuses` comes from the backend's
+current workflow and task rules. A successful status update refreshes dependent
+queries. A stale workflow returns `409` and causes the Studio to reload the task.
+
+The backend endpoints are `GET /tasks/inbox`, `GET /tasks/inbox/count`,
+`GET /tasks/{id}`, `PATCH /tasks/{id}/status`,
+`GET /tasks/sources/{id}/workflows`, `GET /tasks/workflows/{id}`, and
+`GET /tasks/workflows/{id}/tasks`. Inbox filters use `status`, `type`, `reason`,
+`source_id`, and exact `task_id`. The Source DTO exposes a URL and no display
+name, so Inbox rows show Source IDs without additional requests.
+
+### Review authorization
+
+The unauthenticated Task API is available through Vite's loopback development
+proxy. Studio requests use `/backend/tasks/*` and the proxy permits the Task
+read routes and same-origin status updates. The production Nginx service serves
+Business Studio and rejects `/backend/*` requests until a user authentication
+contract is available for the Task module.
+
+`GET /monitoring/reviews/{id}` and `GET /monitoring/sources/{id}/history` require
+an operator credential on the backend. Configure `BURBOT_REVIEW_GATEWAY` with
+the origin of a server that authorizes the Studio user and serves the review
+endpoint. The optional development proxy forwards that GET using the Studio
+user's session. Establish the gateway session for the Studio host. The gateway
+owns operator credentials and should return authorization failures to the Studio
+as `401` or `403`. With the default empty setting, the review page displays the
+integration requirement and any task references. Completing a task records its
+workflow status. Canonical values use the Business Layer's existing workflow.
+
 ## Development
 
 Use Node 24 and install the checked-in dependency versions:
@@ -94,10 +148,11 @@ The default uses Vite's development proxy:
 ```dotenv
 VITE_API_BASE_URL=
 BURBOT_API_TARGET=http://localhost:8000
+BURBOT_REVIEW_GATEWAY=
 ```
 
 `BURBOT_API_TARGET` is a development server setting. Browser requests use
-`/api/v1/business/...`, so no cross-origin setup is necessary for this mode.
+`/api/v1/business/...` and `/backend/tasks/...` as same-origin paths.
 Alternatively set `VITE_API_BASE_URL` to a browser-accessible API origin. A
 different origin requires backend CORS configuration. This public value is
 embedded at build time; rebuild after changing it.
@@ -110,6 +165,8 @@ docker compose up --build -d fe
 ```
 
 The frontend is served at `http://localhost:8001`.
+Use the local Vite server with `BURBOT_API_TARGET=http://127.0.0.1:8000` to
+work with Tasks against the Docker backend.
 
 ## Checks and API regeneration
 
@@ -117,11 +174,23 @@ The frontend is served at `http://localhost:8001`.
 npm test
 npm run lint
 npm run build
+npx playwright install chromium
+npm run test:ui
 ```
 
 Unit tests cover draft migration, source reconstruction, default/identity
 preservation, completions, Unicode diagnostic columns, object ID mappings,
-optimistic update payloads, and API errors.
+optimistic update payloads, Task API mapping, gateway isolation, and API errors.
+Browser tests exercise real Studio routes with mocked HTTP, including Monaco
+drafts, pagination, status updates, workflow history, and evidence.
+
+Against a running local Studio and Burbot database, run the read-only smoke
+test. An optional `BURBOT_SMOKE_TASK_ID` identifies an existing task to exercise
+the detail and history paths.
+
+```bash
+BURBOT_STUDIO_URL=http://127.0.0.1:5173 npm run test:tasks-live
+```
 
 To update the contract, use the backend's Python environment to export its
 actual business routers, then regenerate the Orval client:
@@ -143,8 +212,11 @@ real backend compiler and verifies schema-to-source round trips:
 BURBOT_PYTHON=../burbot/.venv/bin/python npm run test:backend -- ../burbot
 ```
 
-At the pinned backend revision, importing `business_layer.main` fails because
-`sources.api.dependencies` imports the deleted `sources.services.sources` module.
-That backend startup issue must be fixed before a full live database workflow
-can run. Business-only contract export and compiler conformance checks work
-independently of it.
+### Adding resources
+
+Register route metadata with Refine, add the corresponding Data Provider
+operations, and load the resource pages lazily under the shared Studio shell.
+Source browsing can use the paginated Source API. Monitoring should use the
+authenticated gateway for operator data. SelectorTrees should use the
+versioned extraction contracts and carry the selected version through editing
+and approval. Generate a client from the verified contract for each domain.
