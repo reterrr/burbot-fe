@@ -5,13 +5,13 @@ export const localTasksEnabled =
   import.meta.env.DEV &&
   ['127.0.0.1', 'localhost', '[::1]'].includes(window.location.hostname)
 
-export const reviewGatewayConfigured =
+export const localReviewEnabled =
   localTasksEnabled &&
   (
     globalThis as typeof globalThis & {
-      __BURBOT_REVIEW_GATEWAY_CONFIGURED__?: boolean
+      __BURBOT_LOCAL_REVIEW_ENABLED__?: boolean
     }
-  ).__BURBOT_REVIEW_GATEWAY_CONFIGURED__ === true
+  ).__BURBOT_LOCAL_REVIEW_ENABLED__ === true
 
 export const studioTheme: ThemeConfig = {
   algorithm: [theme.darkAlgorithm, theme.compactAlgorithm],

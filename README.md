@@ -98,7 +98,7 @@ Burbot Task API.
 | --- | --- |
 | `#/tasks` | Actionable Inbox, count badge, server filters, pagination, and status actions |
 | `#/tasks/:id` | Task details, workflow and evidence references, metadata, and available transitions |
-| `#/tasks/:id/review` | Canonical value, previous/current evidence, and source references when a review gateway is configured |
+| `#/tasks/:id/review` | Canonical value, previous/current evidence, and source references when the local operator token is configured |
 | `#/tasks/history?source=:id` | Paginated source workflows. Add `workflow=:id` to open its details and historical tasks |
 
 The task adapter in `src/features/tasks/api` reuses the shared HTTP transport
@@ -123,15 +123,13 @@ read routes and same-origin status updates. The production Nginx service serves
 Business Studio and rejects `/backend/*` requests until a user authentication
 contract is available for the Task module.
 
-`GET /monitoring/reviews/{id}` and `GET /monitoring/sources/{id}/history` require
-an operator credential on the backend. Configure `BURBOT_REVIEW_GATEWAY` with
-the origin of a server that authorizes the Studio user and serves the review
-endpoint. The optional development proxy forwards that GET using the Studio
-user's session. Establish the gateway session for the Studio host. The gateway
-owns operator credentials and should return authorization failures to the Studio
-as `401` or `403`. With the default empty setting, the review page displays the
-integration requirement and any task references. Completing a task records its
-workflow status. Canonical values use the Business Layer's existing workflow.
+In local development, Vite forwards `GET /backend/monitoring/reviews/{id}` to
+`GET /monitoring/reviews/{id}` at `BURBOT_API_TARGET`. Vite reads
+`MONITORING_ADMIN_TOKEN` from its server environment and sets the upstream
+Bearer header. The browser receives only the Review enabled flag. With an
+empty setting, the review page shows how to configure the token. Completing a
+task records its workflow status. Canonical values use the Business Layer's
+existing workflow.
 
 ## Development
 
@@ -148,7 +146,6 @@ The default uses Vite's development proxy:
 ```dotenv
 VITE_API_BASE_URL=
 BURBOT_API_TARGET=http://localhost:8000
-BURBOT_REVIEW_GATEWAY=
 ```
 
 `BURBOT_API_TARGET` is a development server setting. Browser requests use
@@ -156,6 +153,25 @@ BURBOT_REVIEW_GATEWAY=
 Alternatively set `VITE_API_BASE_URL` to a browser-accessible API origin. A
 different origin requires backend CORS configuration. This public value is
 embedded at build time; rebuild after changing it.
+
+### Local Docker development
+
+Run the backend with its API published on `127.0.0.1:8000`. Then start Studio
+using the backend's existing environment file or an exported
+`MONITORING_ADMIN_TOKEN`.
+
+```bash
+docker compose --env-file ../burbot/.env -f docker-compose.dev.yml up
+```
+
+Open `http://localhost:5173/#/tasks/121/review` with the ID of an existing
+evidence review task. The development container uses host networking so Vite
+can listen on `127.0.0.1:5173` and reach FastAPI over loopback. On Docker
+Desktop, enable host networking. Set `BURBOT_API_TARGET` if FastAPI uses a
+different address. Run the Compose command again after changing the token.
+For Vite outside Docker, export the token in the shell that runs `npm run dev`.
+
+### Production Docker image
 
 The Docker frontend shares the external `burbot` network and proxies `/api` to
 `bot:8000`, matching the backend Compose service. Run the backend first, then:
@@ -165,8 +181,6 @@ docker compose up --build -d fe
 ```
 
 The frontend is served at `http://localhost:8001`.
-Use the local Vite server with `BURBOT_API_TARGET=http://127.0.0.1:8000` to
-work with Tasks against the Docker backend.
 
 ## Checks and API regeneration
 
@@ -180,7 +194,8 @@ npm run test:ui
 
 Unit tests cover draft migration, source reconstruction, default/identity
 preservation, completions, Unicode diagnostic columns, object ID mappings,
-optimistic update payloads, Task API mapping, gateway isolation, and API errors.
+optimistic update payloads, Task API mapping, Review proxy authorization, and
+production bundle isolation.
 Browser tests exercise real Studio routes with mocked HTTP, including Monaco
 drafts, pagination, status updates, workflow history, and evidence.
 
@@ -216,7 +231,7 @@ BURBOT_PYTHON=../burbot/.venv/bin/python npm run test:backend -- ../burbot
 
 Register route metadata with Refine, add the corresponding Data Provider
 operations, and load the resource pages lazily under the shared Studio shell.
-Source browsing can use the paginated Source API. Monitoring should use the
-authenticated gateway for operator data. SelectorTrees should use the
-versioned extraction contracts and carry the selected version through editing
+Source browsing can use the paginated Source API. Keep Monitoring operator
+credentials on the server. SelectorTrees should use the versioned extraction
+contracts and carry the selected version through editing
 and approval. Generate a client from the verified contract for each domain.
