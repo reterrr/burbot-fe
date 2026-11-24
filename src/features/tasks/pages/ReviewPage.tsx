@@ -11,6 +11,7 @@ import type {
 import { positiveId } from '../api/task-client'
 import type { TaskApiError } from '../api/task-client'
 import { taskResources } from '../api/task-provider'
+import { ReviewInspection } from '../components/ReviewInspection'
 import { TaskActions } from '../components/TaskActions'
 import {
   JsonValue,
@@ -77,7 +78,10 @@ function EvidenceComparison({
     )?.reference_id
 
   return (
-    <div className="task-stack" data-testid="evidence-comparison">
+    <div
+      className="task-stack task-evidence-comparison"
+      data-testid="evidence-comparison"
+    >
       <Card
         title="Evidence context"
         size="small"
@@ -139,14 +143,6 @@ function EvidenceComparison({
           ]}
         />
       </Card>
-      {review.evidenceStatus === 'EXTRACTION_FAILED' && (
-        <Alert
-          type="error"
-          showIcon
-          message="Extraction failed"
-          description="See the evaluation and extraction run references for this task."
-        />
-      )}
       <Card
         title="Canonical value"
         size="small"
@@ -189,6 +185,7 @@ function EvidenceComparison({
           <EvidenceText value={review.currentEvidence} />
         </Card>
       </div>
+      <ReviewInspection review={review} />
     </div>
   )
 }
