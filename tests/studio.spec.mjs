@@ -233,15 +233,16 @@ for (const code of [422, 409]) {
   })
 }
 
-test('review shows comparison values as text, missing evidence, and source-only references', async ({
+test('review renders evidence and handles missing records and rejected tokens', async ({
   page,
 }) => {
   let response = 'CHANGED'
   await page.route('**/backend/tasks/42', (route) =>
     route.fulfill({ json: detail() }),
   )
-  await page.route('**/backend/monitoring/reviews/42', (route) =>
-    response === 'SOURCE_ONLY'
+  await page.route('**/backend/monitoring/reviews/42', (route) => {
+    if (response === 'UNAUTHORIZED') return route.fulfill({ status: 401 })
+    return response === 'SOURCE_ONLY'
       ? route.fulfill({
           status: 404,
           json: { detail: { code: 'MONITORING_REVIEW_NOT_FOUND' } },
@@ -267,8 +268,8 @@ test('review shows comparison values as text, missing evidence, and source-only 
             evidenceChanged: response === 'CHANGED' ? true : null,
             requiresReview: true,
           },
-        }),
-  )
+        })
+  })
   await page.goto('/#/tasks/42/review')
   await expect(page.getByText('Changed evidence')).toBeVisible()
   await expect(page.getByText('01.12.2026', { exact: true })).toBeVisible()
@@ -293,6 +294,11 @@ test('review shows comparison values as text, missing evidence, and source-only 
     ),
   ).toBeVisible()
   await expect(page.getByText('Source snapshot')).toBeVisible()
+  response = 'UNAUTHORIZED'
+  await page.reload()
+  await expect(
+    page.getByText('FastAPI rejected the local operator token'),
+  ).toBeVisible()
 })
 
 test('Workflow History exposes superseded workflows and their historical tasks', async ({

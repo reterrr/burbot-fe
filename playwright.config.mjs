@@ -14,6 +14,6 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev -- --port 17513 --strictPort',
     url: origin,
-    env: { BURBOT_REVIEW_GATEWAY: 'http://127.0.0.1:18089' },
+    env: { MONITORING_ADMIN_TOKEN: 'playwright-review-fixture' },
   },
 })

@@ -1,0 +1,21 @@
+services:
+  fe-dev:
+    image: node:24-alpine
+    init: true
+    network_mode: host
+    working_dir: /app
+    environment:
+      BURBOT_API_TARGET: "${BURBOT_API_TARGET:-http://127.0.0.1:8000}"
+      MONITORING_ADMIN_TOKEN: "${MONITORING_ADMIN_TOKEN:-}"
+    volumes:
+      - .:/app
+      - dev-node-modules:/app/node_modules
+    command:
+      - sh
+      - -ec
+      - |
+        env -u MONITORING_ADMIN_TOKEN npm ci --no-audit --no-fund
+        exec npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+
+volumes:
+  dev-node-modules:
