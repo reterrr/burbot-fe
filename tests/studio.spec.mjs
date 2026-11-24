@@ -290,7 +290,7 @@ test('review renders evidence and handles missing records and rejected tokens', 
     page.getByText('Selector version unavailable for this capture'),
   ).toBeVisible()
   await expect(
-    page.getByText('No evaluation diagnostics recorded for this capture'),
+    page.getByText('Diagnostics unavailable for this capture'),
   ).toBeVisible()
   response = 'SOURCE_ONLY'
   await page.reload()
@@ -463,7 +463,7 @@ test('review inspects the captured selector, match counts, and snapshot without 
     diagnostics.getByText('3 matches · Multiple candidates'),
   ).toBeVisible()
   await expect(
-    diagnostics.getByText('Not recorded', { exact: true }),
+    diagnostics.getByText('Diagnostics unavailable', { exact: true }),
   ).toBeVisible()
   await diagnostics.getByRole('button', { name: /Recipe 2/ }).click()
   await expect(

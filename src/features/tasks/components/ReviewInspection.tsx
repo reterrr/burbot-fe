@@ -10,6 +10,7 @@ import {
 } from 'antd'
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { websiteUrl } from '../../../lib/website-url'
 import type { MonitoringReview } from '../api/contracts'
 import type { ReviewSelector, ReviewSnapshot } from '../api/review-contracts'
 import { label } from '../presentation'
@@ -26,21 +27,6 @@ const versionColors: Record<ReviewSelector['version']['status'], string> = {
   superseded: 'purple',
   draft: 'gold',
   rejected: 'red',
-}
-
-function websiteUrl(value: string | null | undefined) {
-  if (!value) return undefined
-  try {
-    const url = new URL(value)
-    if (
-      ['http:', 'https:'].includes(url.protocol) &&
-      !url.username &&
-      !url.password
-    )
-      return url.href
-  } catch {
-    return undefined
-  }
 }
 
 function SelectorSummary({
@@ -148,7 +134,11 @@ function SelectorSummary({
   )
 }
 
-function ExecutionDiagnostics({ review }: { review: MonitoringReview }) {
+function ExecutionDiagnostics({
+  review,
+}: {
+  review: Pick<MonitoringReview, 'selector' | 'evaluation'>
+}) {
   const { evaluation, selector } = review
   return (
     <Card
@@ -206,7 +196,7 @@ function ExecutionDiagnostics({ review }: { review: MonitoringReview }) {
         </div>
       ) : (
         <Typography.Text type="secondary">
-          No evaluation diagnostics recorded for this capture
+          Diagnostics unavailable for this capture
         </Typography.Text>
       )}
     </Card>
@@ -278,7 +268,37 @@ function SnapshotDetails({ snapshot }: { snapshot: ReviewSnapshot }) {
   )
 }
 
-export function ReviewInspection({ review }: { review: MonitoringReview }) {
+export function SnapshotDrawer({
+  snapshot,
+  open,
+  onClose,
+}: {
+  snapshot: ReviewSnapshot
+  open: boolean
+  onClose: () => void
+}) {
+  return (
+    <Drawer
+      title={`Source snapshot #${snapshot.id}`}
+      width="min(100vw, 640px)"
+      open={open}
+      onClose={onClose}
+      destroyOnHidden
+      className="task-review-inspector"
+    >
+      <SnapshotDetails snapshot={snapshot} />
+    </Drawer>
+  )
+}
+
+export function ReviewInspection({
+  review,
+}: {
+  review: Pick<
+    MonitoringReview,
+    'selector' | 'evaluation' | 'source' | 'snapshot' | 'extractionRunId'
+  >
+}) {
   const [drawer, setDrawer] = useState<'selector' | 'snapshot' | null>(null)
   const { selector, source, snapshot } = review
   const url = websiteUrl(source?.url)
@@ -299,9 +319,14 @@ export function ReviewInspection({ review }: { review: MonitoringReview }) {
         <div className="task-stack">
           <Space wrap size={[16, 8]}>
             {source && (
-              <Link to={`/tasks/history?source=${source.id}`}>
-                Source #{source.id} workflow history
-              </Link>
+              <>
+                <Link to={`/monitoring/sources/${source.id}`}>
+                  Open source review
+                </Link>
+                <Link to={`/tasks/history?source=${source.id}`}>
+                  Source #{source.id} workflow history
+                </Link>
+              </>
             )}
             {url && (
               <a href={url} target="_blank" rel="noopener noreferrer">
@@ -410,16 +435,11 @@ export function ReviewInspection({ review }: { review: MonitoringReview }) {
         </Drawer>
       )}
       {snapshot && (
-        <Drawer
-          title={`Source snapshot #${snapshot.id}`}
-          width="min(100vw, 640px)"
+        <SnapshotDrawer
+          snapshot={snapshot}
           open={drawer === 'snapshot'}
           onClose={() => setDrawer(null)}
-          destroyOnHidden
-          className="task-review-inspector"
-        >
-          <SnapshotDetails snapshot={snapshot} />
-        </Drawer>
+        />
       )}
     </>
   )

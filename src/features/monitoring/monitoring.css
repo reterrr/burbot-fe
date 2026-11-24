@@ -1,0 +1,108 @@
+.monitoring-nav {
+  display: flex;
+  gap: 16px;
+  padding: 0 clamp(16px, 3.4vw, 42px);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.monitoring-nav a {
+  color: var(--text-soft);
+  padding: 12px 8px 10px;
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+}
+
+.monitoring-nav a.active {
+  color: var(--text);
+  border-bottom-color: var(--violet);
+}
+
+.monitoring-source-row,
+.monitoring-context,
+.monitoring-counters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 14px;
+}
+
+.monitoring-source-row {
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.monitoring-source-heading {
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.monitoring-source-heading h3 {
+  font-size: 17px;
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+
+.monitoring-context {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.monitoring-url {
+  display: inline-block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+.monitoring-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.monitoring-source-counts {
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+}
+
+.monitoring-counters {
+  margin: 10px 0 2px;
+  color: var(--text-soft);
+}
+
+.monitoring-counters > div {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.monitoring-counters dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.monitoring-counters .has-count dd {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.monitoring-value {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.monitoring-field-link.ant-btn {
+  height: auto;
+  padding: 0;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

@@ -1,6 +1,8 @@
 import { useInvalidate, useUpdate } from '@refinedev/core'
+import { useQueryClient } from '@tanstack/react-query'
 import { App, Button, Dropdown, Space } from 'antd'
 import { Ellipsis } from 'lucide-react'
+import { monitoringQueryKey } from '../../monitoring/api'
 import type { TaskDetail, TaskStatus } from '../api/contracts'
 import type { TaskApiError } from '../api/task-client'
 import { taskResources } from '../api/task-provider'
@@ -26,6 +28,7 @@ export function TaskActions({
 }) {
   const { modal } = App.useApp()
   const invalidate = useInvalidate()
+  const cache = useQueryClient()
   const { mutateAsync, mutation } = useUpdate<
     TaskDetail,
     TaskApiError,
@@ -58,6 +61,7 @@ export function TaskActions({
       if ((error as TaskApiError).statusCode !== 409) return
     }
     await Promise.all([
+      cache.invalidateQueries({ queryKey: monitoringQueryKey }),
       invalidate({
         resource: taskResources.tasks,
         id: task.id,

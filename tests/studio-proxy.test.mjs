@@ -32,7 +32,7 @@ async function startStudioProxy(t, token, mode = 'development') {
       cookie,
       authorization,
     })
-    const isReview = request.url.startsWith('/monitoring/reviews/')
+    const isReview = request.url.startsWith('/monitoring/')
     const status =
       isReview && authorization !== `Bearer ${operatorToken}` ? 401 : 200
     response
@@ -137,10 +137,7 @@ test('Vite forwards scoped local reviews with its operator token', async (t) => 
     404,
   )
   assert.equal((await read(`${review}/extra`)).status, 404)
-  assert.equal(
-    (await read('/backend/monitoring/sources/10/history')).status,
-    404,
-  )
+  assert.equal((await read('/backend/monitoring/sources/10/jobs')).status, 404)
   assert.equal((await read('/api/v1/business/models')).status, 200)
 
   assert.deepEqual(received, [
@@ -176,6 +173,43 @@ test('Vite forwards scoped local reviews with its operator token', async (t) => 
   const browserModule = await read('/src/app/studio.ts')
   assert.equal(browserModule.status, 200)
   assert.equal((await browserModule.text()).includes(operatorToken), false)
+})
+
+test('Vite authorizes only the scoped Monitoring workspace reads', async (t) => {
+  const { read, received } = await startStudioProxy(t, operatorToken)
+  const id = '00000000-0000-4000-8000-000000000001'
+  const routes = [
+    '/monitoring/attention/sources?offset=20&limit=20',
+    '/monitoring/sources/10/review',
+    `/monitoring/sources/10/review/${id}/${id}`,
+    '/monitoring/sources/10/history?summary=true',
+  ]
+  for (const route of routes) {
+    const response = await read('/backend' + route)
+    assert.equal(response.status, 200)
+    assert.equal(response.headers.get('cache-control'), 'no-store')
+  }
+  for (const route of [
+    '/monitoring/agents',
+    '/monitoring/sources/10/approval',
+    '/monitoring/sources/10/review/invalid',
+    '/extraction/selectors',
+  ]) {
+    assert.equal((await read('/backend' + route)).status, 404)
+  }
+  assert.equal(
+    (await read('/backend' + routes[1], { method: 'POST' })).status,
+    404,
+  )
+  assert.deepEqual(
+    received,
+    routes.map((url) => ({
+      url,
+      method: 'GET',
+      cookie: undefined,
+      authorization: `Bearer ${operatorToken}`,
+    })),
+  )
 })
 
 test('Review propagates upstream authorization failures', async (t) => {

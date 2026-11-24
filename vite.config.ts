@@ -7,7 +7,10 @@ const loopbackAddresses = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
 const taskReads =
   /^\/backend\/tasks\/(?:inbox(?:\/count)?|[1-9]\d*|sources\/[1-9]\d*\/workflows|workflows\/[1-9]\d*(?:\/tasks)?)$/
 const taskStatus = /^\/backend\/tasks\/[1-9]\d*\/status$/
-const reviewRead = /^\/backend\/monitoring\/reviews\/[1-9]\d*$/
+const uuid = '[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}'
+const reviewRead = new RegExp(
+  String.raw`^/backend/monitoring/(?:reviews/[1-9]\d*|attention/sources|sources/[1-9]\d*/(?:history|review(?:/${uuid}/${uuid})?))$`,
+)
 
 function localStudioApi(reviewEnabled: boolean): Plugin {
   return {
@@ -77,7 +80,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
         '/backend/tasks/': taskProxy,
         ...(reviewToken
           ? {
-              '/backend/monitoring/reviews/': {
+              '/backend/monitoring/': {
                 ...taskProxy,
                 configure(proxy) {
                   proxy.on('proxyReq', (outbound) => {
