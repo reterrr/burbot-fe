@@ -9,7 +9,7 @@ const taskReads =
 const taskStatus = /^\/backend\/tasks\/[1-9]\d*\/status$/
 const reviewRead = /^\/backend\/monitoring\/reviews\/[1-9]\d*$/
 
-function localStudioApi(reviewConfigured: boolean): Plugin {
+function localStudioApi(reviewEnabled: boolean): Plugin {
   return {
     name: 'burbot-local-studio-api',
     configureServer(server) {
@@ -34,7 +34,7 @@ function localStudioApi(reviewConfigured: boolean): Plugin {
         if (
           (request.method === 'GET' &&
             (taskReads.test(path) ||
-              (reviewConfigured && reviewRead.test(path)))) ||
+              (reviewEnabled && reviewRead.test(path)))) ||
           (request.method === 'PATCH' && taskStatus.test(path))
         )
           return next()
@@ -48,8 +48,13 @@ function localStudioApi(reviewConfigured: boolean): Plugin {
 export default defineConfig(({ mode, command, isPreview }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const target = env.BURBOT_API_TARGET || 'http://localhost:8000'
-  const reviewGateway =
-    command === 'serve' && !isPreview && env.BURBOT_REVIEW_GATEWAY
+  const reviewToken =
+    command === 'serve' &&
+    !isPreview &&
+    mode === 'development' &&
+    process.env.NODE_ENV !== 'production'
+      ? process.env.MONITORING_ADMIN_TOKEN?.trim()
+      : undefined
   const businessProxy = { '/api': { target, changeOrigin: true } }
   const taskProxy: ProxyOptions = {
     target,
@@ -64,18 +69,25 @@ export default defineConfig(({ mode, command, isPreview }) => {
   }
 
   return {
-    plugins: [react(), localStudioApi(Boolean(reviewGateway))],
+    plugins: [react(), localStudioApi(Boolean(reviewToken))],
     server: {
       host: '127.0.0.1',
       proxy: {
         ...businessProxy,
         '/backend/tasks/': taskProxy,
-        ...(reviewGateway
+        ...(reviewToken
           ? {
               '/backend/monitoring/reviews/': {
                 ...taskProxy,
-                target: reviewGateway,
-                configure: undefined,
+                configure(proxy) {
+                  proxy.on('proxyReq', (outbound) => {
+                    outbound.removeHeader('cookie')
+                    outbound.setHeader('authorization', `Bearer ${reviewToken}`)
+                  })
+                  proxy.on('proxyRes', (upstream) => {
+                    upstream.headers['cache-control'] = 'no-store'
+                  })
+                },
               },
             }
           : {}),
@@ -86,8 +98,8 @@ export default defineConfig(({ mode, command, isPreview }) => {
       'globalThis.__BURBOT_API_BASE_URL__': JSON.stringify(
         env.VITE_API_BASE_URL ?? '',
       ),
-      'globalThis.__BURBOT_REVIEW_GATEWAY_CONFIGURED__': JSON.stringify(
-        Boolean(reviewGateway),
+      'globalThis.__BURBOT_LOCAL_REVIEW_ENABLED__': JSON.stringify(
+        Boolean(reviewToken),
       ),
     },
   }

@@ -2,7 +2,7 @@ import { useOne } from '@refinedev/core'
 import { Alert, Card, Descriptions, Tag, Typography } from 'antd'
 import { ArrowRight } from 'lucide-react'
 import { useLocation, useParams } from 'react-router'
-import { reviewGatewayConfigured } from '../../../app/studio'
+import { localReviewEnabled } from '../../../app/studio'
 import type {
   EvidenceStatus,
   MonitoringReview,
@@ -203,7 +203,7 @@ export default function ReviewPage() {
     id: validId,
     errorNotification: false,
     queryOptions: {
-      enabled: Boolean(validId && task && reviewGatewayConfigured),
+      enabled: Boolean(validId && task && localReviewEnabled),
     },
   })
 
@@ -238,15 +238,20 @@ export default function ReviewPage() {
       />
       <div className="task-detail-grid">
         <div className="task-stack">
-          {!reviewGatewayConfigured && (
+          {!localReviewEnabled && (
             <Alert
               type="info"
               showIcon
-              message="Evidence review requires an authenticated gateway"
-              description="Connect a review gateway that authorizes the Studio user to load field evidence. Task details and references are available below."
+              message="Evidence review needs a local operator token"
+              description={
+                <>
+                  Set <code>MONITORING_ADMIN_TOKEN</code> in the Vite server
+                  environment and restart the local Studio.
+                </>
+              }
             />
           )}
-          {reviewGatewayConfigured &&
+          {localReviewEnabled &&
             (query.isLoading ? (
               <TaskLoading />
             ) : query.error?.statusCode === 404 ? (
@@ -260,7 +265,7 @@ export default function ReviewPage() {
                 message={
                   query.error.statusCode === 401 ||
                   query.error.statusCode === 403
-                    ? 'Sign in to the review gateway to access evidence'
+                    ? 'FastAPI rejected the local operator token'
                     : 'Could not load monitoring evidence'
                 }
                 error={query.error}

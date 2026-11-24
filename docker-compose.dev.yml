@@ -1,25 +1,21 @@
 services:
   fe-dev:
     image: node:24-alpine
-    container_name: burbot-fe-dev
-
-    working_dir: /app
-
+    init: true
     network_mode: host
-
+    working_dir: /app
     environment:
-      BURBOT_API_TARGET: http://127.0.0.1:8000
-      VITE_API_BASE_URL: ""
-
+      BURBOT_API_TARGET: "${BURBOT_API_TARGET:-http://127.0.0.1:8000}"
+      MONITORING_ADMIN_TOKEN: "${MONITORING_ADMIN_TOKEN:-}"
     volumes:
-      - ./:/app
-      - fe-node-modules:/app/node_modules
-
-    command: >
-      sh -c "
-        npm ci --no-audit --no-fund &&
-        npm run dev -- --host 127.0.0.1 --port 5173
-      "
+      - .:/app
+      - dev-node-modules:/app/node_modules
+    command:
+      - sh
+      - -ec
+      - |
+        env -u MONITORING_ADMIN_TOKEN npm ci --no-audit --no-fund
+        exec npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 
 volumes:
-  fe-node-modules:
+  dev-node-modules:
