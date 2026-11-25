@@ -552,9 +552,7 @@ test('Failed checks stay distinct from the latest completed snapshot', async ({
   await expect(
     page.getByText('No tracked fields', { exact: true }),
   ).toBeVisible()
-  await expect(page.getByRole('button', { name: 'View snapshot' })).toHaveCount(
-    0,
-  )
+  await expect(page.getByRole('link', { name: 'View snapshot' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Monitoring history' }).click()
   await page
     .getByRole('dialog', { name: 'Monitoring history' })
@@ -563,8 +561,7 @@ test('Failed checks stay distinct from the latest completed snapshot', async ({
     .click()
   await expect(page.getByText(/Historical check from/)).toBeVisible()
   expect(selected.at(-1)).toBe(previous.id)
-  await page.getByRole('button', { name: 'View snapshot' }).click()
-  const snapshot = page.getByRole('dialog', { name: 'Source snapshot #15' })
-  await expect(snapshot).toBeVisible()
-  await expect(snapshot.locator('iframe, script')).toHaveCount(0)
+  await expect(
+    page.getByRole('link', { name: 'View snapshot' }),
+  ).toHaveAttribute('href', '#/monitoring/sources/7/snapshots/15')
 })

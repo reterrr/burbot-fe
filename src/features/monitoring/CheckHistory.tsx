@@ -7,20 +7,23 @@ import {
   Timestamp,
 } from '../tasks/components/TaskPresentation'
 import { monitoringApi, monitoringQueryKey } from './api'
+import { SnapshotLink } from './SnapshotLink'
 import { CheckTag } from './StatusTags'
 
 const pageSize = 20
 
 export default function CheckHistory({
   sourceId,
+  initialPage = 0,
   onSelect,
   onClose,
 }: {
   sourceId: string
+  initialPage?: number
   onSelect: (id: string) => void
   onClose: () => void
 }) {
-  const [page, setPage] = useState(0)
+  const [page, setPage] = useState(initialPage)
   const history = useQuery({
     queryKey: [...monitoringQueryKey, 'history', sourceId, page],
     queryFn: ({ signal }) =>
@@ -49,6 +52,18 @@ export default function CheckHistory({
           renderItem={(check) => (
             <List.Item
               actions={[
+                check.snapshotId != null && (
+                  <SnapshotLink
+                    key="snapshot"
+                    sourceId={sourceId}
+                    snapshotId={check.snapshotId}
+                    back={{
+                      label: 'Monitoring history',
+                      state: { historyPage: page },
+                    }}
+                    small
+                  />
+                ),
                 <Button
                   key="review"
                   size="small"

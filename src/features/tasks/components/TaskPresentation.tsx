@@ -38,10 +38,14 @@ export function Timestamp({ value }: { value?: string | null }) {
   )
 }
 
-export function TaskLoading() {
+export function TaskLoading({
+  message = 'Loading tasks…',
+}: {
+  message?: string
+}) {
   return (
     <div className="task-loading" role="status">
-      <Spin /> Loading tasks…
+      <Spin /> {message}
     </div>
   )
 }

@@ -124,11 +124,15 @@ Open **Monitoring → Attention** from the Studio activity bar.
 | `#/monitoring/attention` | Server-paginated sources that need attention, with source and field outcomes, open tasks, search, filters, and priority sorting |
 | `#/monitoring/sources` | All monitored sources, including healthy sources |
 | `#/monitoring/sources/:sourceId` | Latest check, reviewable history, canonical and captured values, field inspector, and open tasks from earlier checks |
+| `#/monitoring/sources/:sourceId/snapshots/:snapshotId` | Isolated Preview, searchable HTML Source, capture details, and original HTML download |
 
 Choose a field to load its captured SelectorTree and evaluation. Historical
-checks are addressable with `?check=<job UUID>`. The snapshot viewer shows
-acquisition metadata. Initial evidence compares stored text or lists of text
-with the canonical value and explains first-observation review. Completing a
+checks are addressable with `?check=<job UUID>`. **View snapshot** opens the
+capture associated with the selected check or task. **HTML Source** supports
+literal text, CSS class, and HTML ID searches in read-only Monaco. Use
+**Download original HTML** to save the exact artifact. Initial evidence compares
+stored text or lists of text with the canonical value and explains
+first-observation review. Completing a
 task updates its status through the Task API. Canonical values and accepted
 baselines have their own workflows.
 
@@ -145,7 +149,8 @@ contract is available for the Task module.
 
 In local development, Vite forwards the allowlisted GET requests beneath
 `/backend/monitoring` to `/monitoring` at `BURBOT_API_TARGET`. This covers task
-reviews, Attention, Source Review, check history, and captured field inspection. Vite reads
+reviews, Attention, Source Review, check history, captured field inspection, and
+the snapshot preview, content, and download routes. Vite reads
 `MONITORING_ADMIN_TOKEN` from its server environment and sets the upstream
 Bearer header. The browser receives only the Review enabled flag. With an
 empty setting, the review page shows how to configure the token. Completing a

@@ -104,6 +104,10 @@ export default function FieldInspector({
           ))}
         {(!recorded || !inspection.isPending) && (
           <ReviewInspection
+            snapshotBack={{
+              label: 'Field inspector',
+              state: { inspectField: field.selectorUuid },
+            }}
             review={{
               ...inspection.data,
               source: review.source,
