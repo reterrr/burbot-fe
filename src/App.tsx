@@ -7,6 +7,7 @@ import {
   GitBranch,
   History,
   Inbox,
+  Radar,
   Settings,
   TerminalSquare,
 } from 'lucide-react'
@@ -33,6 +34,9 @@ const DataView = lazy(() =>
   import('./views/DataView').then((module) => ({ default: module.DataView })),
 )
 const TaskRoutes = lazy(() => import('./features/tasks/TaskRoutes'))
+const MonitoringRoutes = lazy(
+  () => import('./features/monitoring/MonitoringRoutes'),
+)
 const TaskCount = lazy(() => import('./features/tasks/components/TaskCount'))
 const activeClass = ({ isActive }: { isActive: boolean }) =>
   isActive ? 'is-active' : ''
@@ -40,8 +44,9 @@ const activeClass = ({ isActive }: { isActive: boolean }) =>
 function App() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const sectionTitle =
-    pathname === '/tasks/history'
+  const sectionTitle = pathname.startsWith('/monitoring')
+    ? 'Monitoring'
+    : pathname === '/tasks/history'
       ? 'Workflow history'
       : pathname.startsWith('/tasks')
         ? 'Task management'
@@ -181,6 +186,16 @@ function App() {
             {localTasksEnabled && (
               <div className="activity-tasks">
                 <NavLink
+                  to="/monitoring/attention"
+                  className={
+                    pathname.startsWith('/monitoring') ? 'is-active' : ''
+                  }
+                  aria-label="Monitoring"
+                  data-tooltip="Monitoring · Attention"
+                >
+                  <Radar size={21} strokeWidth={1.7} />
+                </NavLink>
+                <NavLink
                   to="/tasks"
                   end
                   className={
@@ -275,6 +290,18 @@ function App() {
                     onModelIdChange={setSelectedModelId}
                     onApplied={refreshModels}
                   />
+                }
+              />
+              <Route
+                path="/monitoring/*"
+                element={
+                  localTasksEnabled ? (
+                    <MonitoringRoutes />
+                  ) : (
+                    <p className="workspace-loading">
+                      Monitoring is available in local development.
+                    </p>
+                  )
                 }
               />
               <Route

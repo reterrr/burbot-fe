@@ -65,7 +65,7 @@ export function ExecutionStatus({
 }) {
   return (
     <Tag color={status && resultColors[status]}>
-      {status ? label(status) : 'Not recorded'}
+      {status ? label(status) : 'Diagnostics unavailable'}
     </Tag>
   )
 }
@@ -109,6 +109,9 @@ export function LocatorDetails({
     <div className="task-locator">
       <div className="task-inspector-row">
         <Typography.Text strong>{locatorLabels[locator.kind]}</Typography.Text>
+        <Typography.Text type="secondary">
+          Order {locator.order}
+        </Typography.Text>
         {diagnostics && <ExecutionStatus status={result?.status} />}
         {result && (
           <Typography.Text type="secondary">

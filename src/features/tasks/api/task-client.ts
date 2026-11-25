@@ -57,6 +57,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   throw new TaskApiError(status, formatApiError(data, fallback))
 }
 
+export { request as requestBackend }
+
 interface Paging {
   offset: number
   limit: number

@@ -65,7 +65,14 @@ export default function TaskDetailsPage() {
                 {
                   key: 'reason',
                   label: 'Reason',
-                  children: task.reason ? label(task.reason) : '—',
+                  children:
+                    task.reason === 'manual' &&
+                    (task.metadata_json?.monitoringJobId ||
+                      task.metadata_json?.monitoringKey)
+                      ? 'Monitoring review'
+                      : task.reason
+                        ? label(task.reason)
+                        : '—',
                 },
                 {
                   key: 'workflow',
@@ -76,6 +83,21 @@ export default function TaskDetailsPage() {
                     </Link>
                   ),
                 },
+                ...(source
+                  ? [
+                      {
+                        key: 'source',
+                        label: 'Source',
+                        children: (
+                          <Link
+                            to={`/monitoring/sources/${source.reference_id}`}
+                          >
+                            Open source review
+                          </Link>
+                        ),
+                      },
+                    ]
+                  : []),
                 {
                   key: 'created',
                   label: 'Created',
