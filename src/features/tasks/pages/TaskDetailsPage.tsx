@@ -11,7 +11,11 @@ import {
   TaskReferences,
   Timestamp,
 } from '../components/TaskPresentation'
-import { useTask, useTaskBackLink } from '../hooks/task-queries'
+import {
+  useMonitoringReview,
+  useTask,
+  useTaskBackLink,
+} from '../hooks/task-queries'
 import { hasReview, label, titleOf } from '../presentation'
 
 export default function TaskDetailsPage() {
@@ -19,6 +23,10 @@ export default function TaskDetailsPage() {
   const { state } = useLocation()
   const back = useTaskBackLink()
   const { query, result: task } = useTask(id)
+  const { result: review } = useMonitoringReview(
+    id,
+    Boolean(task?.metadata_json?.monitoringJobId),
+  )
   if (query.isLoading) return <TaskLoading />
   if (!task || query.isError)
     return (
@@ -139,7 +147,7 @@ export default function TaskDetailsPage() {
             </Card>
           )}
         </div>
-        <TaskReferences references={task.references} />
+        <TaskReferences references={task.references} review={review} />
       </div>
     </div>
   )

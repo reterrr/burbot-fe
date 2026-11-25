@@ -4,12 +4,14 @@ import { Link } from 'react-router'
 import { EvidenceValues } from '../tasks/components/EvidenceValues'
 import { ReviewInspection } from '../tasks/components/ReviewInspection'
 import {
+  RecordId,
   RequestFailure,
   StatusTag,
   TaskLoading,
 } from '../tasks/components/TaskPresentation'
 import type { SourceReview, TrackedField } from './api'
 import { fieldStatuses, monitoringApi, monitoringQueryKey } from './api'
+import { businessFieldTitle, businessFieldType } from './presentation'
 import { FieldTag } from './StatusTags'
 
 export default function FieldInspector({
@@ -22,6 +24,7 @@ export default function FieldInspector({
   onClose: () => void
 }) {
   const checkId = review.selectedCheck?.id
+  const fieldType = businessFieldType(field.businessField)
   const recorded = Boolean(checkId && field.status)
   const inspection = useQuery({
     queryKey: [
@@ -36,18 +39,31 @@ export default function FieldInspector({
   })
   return (
     <Drawer
-      title={field.businessField.name ?? 'Tracked field'}
+      title={businessFieldTitle(field.businessField)}
       width="min(100vw, 850px)"
       open
       onClose={onClose}
       className="task-review-inspector"
     >
       <div className="task-stack">
+        <div className="task-value-meta">
+          {field.businessField.persistentKey && (
+            <span>{field.businessField.persistentKey} ·</span>
+          )}
+          <RecordId id={field.businessField.id} prefix="Field" />
+          {fieldType && <span>{fieldType}</span>}
+          {field.businessObjectFieldId != null && (
+            <RecordId id={field.businessObjectFieldId} prefix="Slot" />
+          )}
+        </div>
         <Space wrap>
-          {field.businessObject?.name && (
-            <Typography.Text>
-              Business object {field.businessObject.name}
-            </Typography.Text>
+          {field.businessObject && (
+            <>
+              {field.businessObject.name && (
+                <Typography.Text>{field.businessObject.name}</Typography.Text>
+              )}
+              <RecordId id={field.businessObject.id} prefix="BusinessObject" />
+            </>
           )}
           <FieldTag status={field.status} />
           {field.task && (

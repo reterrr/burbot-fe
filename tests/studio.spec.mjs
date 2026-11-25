@@ -307,6 +307,123 @@ test('review renders evidence and handles missing records and rejected tokens', 
   ).toBeVisible()
 })
 
+test('reference evidence shows readable task references and requires semantic validation', async ({
+  page,
+}) => {
+  const projectName = 'Regional Programme – development services 2024–2029'
+  const sourceUrl = 'https://programmes.example.org/register'
+  const taskId = 155
+  const taskReferences = [
+    ['source', 572],
+    ['source_snapshot', 268],
+    ['extraction_run', 71],
+    ['observation', 150],
+    ['business_field', 271],
+    ['business_object_field', 8608],
+    ['business_entity', 999],
+  ].map(([reference_type, reference_id], i) => ({
+    id: i + 1,
+    task_id: taskId,
+    role: 'context',
+    reference_type,
+    reference_id,
+    metadata_json: null,
+    created_at: date,
+  }))
+  const record = {
+    ...task(taskId, { metadata_json: { monitoringJobId: 'recorded-job' } }),
+    references: taskReferences,
+    allowed_statuses: pendingActions,
+  }
+  await page.route(`**/backend/tasks/${taskId}`, (route) =>
+    route.fulfill({ json: record }),
+  )
+  await page.route(`**/backend/monitoring/reviews/${taskId}`, (route) =>
+    route.fulfill({
+      json: {
+        taskId,
+        taskStatus: 'pending',
+        businessField: {
+          id: 271,
+          name: 'Projekt',
+          persistentKey: 'project_id',
+          type: 'reference',
+          referenceEntity: { id: 68, name: 'Project' },
+        },
+        businessObject: { id: 8, name: 'Funding notice' },
+        businessObjectFieldId: 8608,
+        canonicalValueId: 3639,
+        canonicalValue: 291,
+        canonicalDisplay: {
+          kind: 'reference',
+          rawValue: 291,
+          label: projectName,
+          target: { type: 'business_object', id: 291, entityId: 68 },
+          resolved: true,
+          labelIsCurrent: true,
+        },
+        canonicalValueScope: 'current',
+        currentEvidence: projectName,
+        observationId: 150,
+        previousObservationId: null,
+        previousEvidence: null,
+        extractionRunId: 71,
+        extractionRunStatus: 'completed',
+        source: { id: 572, url: sourceUrl },
+        snapshot: {
+          id: 268,
+          source_id: 572,
+          fetched_at: date,
+          page_url: sourceUrl,
+        },
+        comparison: null,
+        evidenceStatus: 'INITIAL_EVIDENCE',
+        evidenceChanged: null,
+        requiresReview: true,
+      },
+    }),
+  )
+  await page.goto(`/#/tasks/${taskId}`)
+  const list = page.locator('.task-references')
+  await expect(
+    list.getByRole('link', { name: 'programmes.example.org' }),
+  ).toHaveAttribute('href', '#/tasks/history?source=572')
+  await expect(list.getByText('Captured', { exact: false })).toContainText(
+    'Nov',
+  )
+  await expect(list.getByText('Completed', { exact: true })).toBeVisible()
+  await expect(list.getByText(projectName, { exact: true })).toBeVisible()
+  await expect(
+    list.getByText('Projekt · Funding notice', { exact: true }),
+  ).toBeVisible()
+  await expect(list.getByText('#999', { exact: true })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Open evidence review' }).click()
+  const evidence = page.getByTestId('evidence-comparison')
+  await expect(
+    evidence.getByText('reference → Project', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    evidence.getByText('project_id ·', { exact: true }),
+  ).toBeVisible()
+  await expect(evidence.getByText('Source #572', { exact: true })).toBeVisible()
+  await expect(evidence.getByText('Slot #8608', { exact: true })).toBeVisible()
+  await expect(evidence.getByText('Value record #3639')).toBeVisible()
+  await expect(evidence.getByText('BusinessObject #291')).toBeVisible()
+  await expect(evidence.getByText(projectName, { exact: true })).toHaveCount(2)
+  await expect(
+    evidence.getByText(
+      'Reference target resolved. Evidence requires semantic validation.',
+    ),
+  ).toBeVisible()
+  await expect(
+    evidence.getByText('Recorded evidence matches', { exact: false }),
+  ).toHaveCount(0)
+  await expect(
+    evidence.getByRole('button', { name: 'Copy ID' }).first(),
+  ).toBeVisible()
+})
+
 test('review inspects the captured selector, match counts, and snapshot without writing', async ({
   page,
   context,

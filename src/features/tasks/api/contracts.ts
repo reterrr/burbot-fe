@@ -1,3 +1,4 @@
+import type { BusinessValueContext } from '../../monitoring/display-contracts'
 import type {
   ReviewEvaluation,
   ReviewSelector,
@@ -129,12 +130,9 @@ export type EvidenceStatus =
   | 'CONFLICT'
   | 'EXTRACTION_FAILED'
 
-export interface MonitoringReview {
+export interface MonitoringReview extends BusinessValueContext {
   taskId: number
   taskStatus: TaskStatus
-  businessObjectFieldId: number | null
-  canonicalValueId: number | null
-  canonicalValue: unknown
   previousObservationId: number | null
   observationId: number | null
   previousEvidence: string | string[] | null
@@ -145,6 +143,7 @@ export interface MonitoringReview {
   source?: ReviewSource | null
   snapshot?: ReviewSnapshot | null
   extractionRunId?: number | null
+  extractionRunStatus?: string | null
   baselineObservationId: number | null
   comparison: 'accepted_baseline' | 'previous_observation' | null
   evidenceStatus: EvidenceStatus | null

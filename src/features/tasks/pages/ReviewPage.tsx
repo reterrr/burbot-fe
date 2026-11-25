@@ -1,26 +1,29 @@
-import { useOne } from '@refinedev/core'
 import { Alert, Card, Descriptions, Tag } from 'antd'
 import { useLocation, useParams } from 'react-router'
 import { localReviewEnabled } from '../../../app/studio'
+import {
+  businessFieldTitle,
+  businessFieldType,
+  sourceTitle,
+} from '../../monitoring/presentation'
 import type {
   EvidenceStatus,
   MonitoringReview,
   TaskDetail,
 } from '../api/contracts'
 import { positiveId } from '../api/task-client'
-import type { TaskApiError } from '../api/task-client'
-import { taskResources } from '../api/task-provider'
 import { EvidenceValues } from '../components/EvidenceValues'
 import { ReviewInspection } from '../components/ReviewInspection'
 import { TaskActions } from '../components/TaskActions'
 import {
+  RecordId,
   RequestFailure,
   StatusTag,
   TaskHeader,
   TaskLoading,
   TaskReferences,
 } from '../components/TaskPresentation'
-import { useTask } from '../hooks/task-queries'
+import { useMonitoringReview, useTask } from '../hooks/task-queries'
 import { label, titleOf } from '../presentation'
 
 const evidenceLabels: Record<EvidenceStatus, { title: string; color: string }> =
@@ -44,12 +47,19 @@ function EvidenceComparison({
   const status = review.evidenceStatus
     ? evidenceLabels[review.evidenceStatus]
     : undefined
-  const source = task.references.find(
-    (reference) => reference.reference_type === 'source',
-  )
-  const field = task.references.find(
-    (reference) => reference.reference_type === 'business_field',
-  )
+  const source = review.source
+  const sourceId =
+    source?.id ??
+    task.references.find((reference) => reference.reference_type === 'source')
+      ?.reference_id
+  const field = review.businessField
+  const fieldId =
+    field?.id ??
+    task.references.find(
+      (reference) => reference.reference_type === 'business_field',
+    )?.reference_id
+  const fieldName = field && businessFieldTitle(field)
+  const fieldType = field && businessFieldType(field)
   const slot =
     review.businessObjectFieldId ??
     task.references.find(
@@ -70,21 +80,41 @@ function EvidenceComparison({
           size="small"
           column={{ xs: 1, sm: 2 }}
           items={[
-            ...(source
+            ...(sourceId
               ? [
                   {
                     key: 'source',
                     label: 'Source',
-                    children: `#${source.reference_id}`,
+                    children: (
+                      <div className="task-context-value">
+                        {source?.url && (
+                          <span title={source.url}>{sourceTitle(source)}</span>
+                        )}
+                        <RecordId id={sourceId} prefix="Source" />
+                      </div>
+                    ),
                   },
                 ]
               : []),
-            ...(field
+            ...(fieldId
               ? [
                   {
                     key: 'field',
                     label: 'Business field',
-                    children: `#${field.reference_id}`,
+                    children: (
+                      <div className="task-context-value">
+                        {fieldName && <span>{fieldName}</span>}
+                        <div className="task-value-meta">
+                          {field?.persistentKey && (
+                            <span>{field.persistentKey} ·</span>
+                          )}
+                          <RecordId id={fieldId} prefix="Field" />
+                        </div>
+                        {fieldType && (
+                          <div className="task-value-meta">{fieldType}</div>
+                        )}
+                      </div>
+                    ),
                   },
                 ]
               : []),
@@ -93,7 +123,17 @@ function EvidenceComparison({
                   {
                     key: 'slot',
                     label: 'Business object field',
-                    children: `#${slot}`,
+                    children: (
+                      <div className="task-context-value">
+                        {fieldName && <span>{fieldName}</span>}
+                        {review.businessObject?.name && (
+                          <div className="task-value-meta">
+                            {review.businessObject.name}
+                          </div>
+                        )}
+                        <RecordId id={slot} prefix="Slot" />
+                      </div>
+                    ),
                   },
                 ]
               : []),
@@ -133,14 +173,7 @@ export default function ReviewPage() {
   const { state } = useLocation()
   const { query: taskQuery, result: task } = useTask(id)
   const validId = positiveId(id)
-  const { query, result: review } = useOne<MonitoringReview, TaskApiError>({
-    resource: taskResources.reviews,
-    id: validId,
-    errorNotification: false,
-    queryOptions: {
-      enabled: Boolean(validId && task && localReviewEnabled),
-    },
-  })
+  const { query, result: review } = useMonitoringReview(id, Boolean(task))
 
   if (taskQuery.isLoading) return <TaskLoading />
   if (!task || taskQuery.isError)
@@ -210,7 +243,7 @@ export default function ReviewPage() {
               review && <EvidenceComparison review={review} task={task} />
             ))}
         </div>
-        <TaskReferences references={task.references} />
+        <TaskReferences references={task.references} review={review} />
       </div>
     </div>
   )

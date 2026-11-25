@@ -2,7 +2,9 @@ import { Alert, Button, Card, Empty, Spin, Tag, Typography } from 'antd'
 import { ArrowLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
+import { businessFieldTitle, sourceTitle } from '../../monitoring/presentation'
 import type {
+  MonitoringReview,
   TaskReference,
   TaskStatus,
   WorkflowStatus,
@@ -102,6 +104,28 @@ export function JsonValue({ value }: { value: unknown }) {
   )
 }
 
+export function RecordId({
+  id,
+  prefix,
+  copy = true,
+}: {
+  id: number
+  prefix?: string
+  copy?: boolean
+}) {
+  return (
+    <Typography.Text
+      type="secondary"
+      className="task-record-id"
+      copyable={
+        copy && { text: String(id), tooltips: ['Copy ID', 'ID copied'] }
+      }
+    >
+      {prefix && `${prefix} `}#{id}
+    </Typography.Text>
+  )
+}
+
 const referenceLabels: Record<TaskReference['reference_type'], string> = {
   source: 'Source',
   source_snapshot: 'Source snapshot',
@@ -113,10 +137,60 @@ const referenceLabels: Record<TaskReference['reference_type'], string> = {
   business_object_field: 'Business object field',
 }
 
+function referenceLabel(
+  reference: TaskReference,
+  review: MonitoringReview,
+): ReactNode {
+  const id = reference.reference_id
+  switch (reference.reference_type) {
+    case 'source':
+      if (review.source?.id === id && review.source.url)
+        return sourceTitle(review.source)
+      break
+    case 'source_snapshot':
+      if (review.snapshot?.id === id && review.snapshot.fetched_at)
+        return (
+          <>
+            Captured <Timestamp value={review.snapshot.fetched_at} />
+          </>
+        )
+      break
+    case 'extraction_run':
+      if (review.extractionRunId === id && review.extractionRunStatus)
+        return label(review.extractionRunStatus)
+      break
+    case 'observation': {
+      const evidence =
+        review.observationId === id
+          ? review.currentEvidence
+          : review.previousObservationId === id
+            ? review.previousEvidence
+            : null
+      return Array.isArray(evidence) ? evidence.join(' · ') : evidence
+    }
+    case 'business_field':
+      if (review.businessField?.id === id)
+        return review.businessField.name || review.businessField.persistentKey
+      break
+    case 'business_object_field':
+      if (review.businessObjectFieldId === id && review.businessField) {
+        const fieldName = businessFieldTitle(review.businessField)
+        const objectName = review.businessObject?.name
+        return objectName ? `${fieldName} · ${objectName}` : fieldName
+      }
+      break
+    case 'business_object':
+      if (review.businessObject?.id === id) return review.businessObject.name
+      break
+  }
+}
+
 export function TaskReferences({
   references,
+  review,
 }: {
   references: TaskReference[]
+  review?: MonitoringReview
 }) {
   return (
     <Card title="References" size="small">
@@ -127,26 +201,32 @@ export function TaskReferences({
         />
       ) : (
         <ul className="task-references">
-          {references.map((reference) => (
-            <li key={reference.id}>
-              <span>
-                {referenceLabels[reference.reference_type]}{' '}
-                <small>{label(reference.role)}</small>
-              </span>
-              {reference.reference_type === 'source' ? (
-                <Link
-                  to={`/tasks/history?source=${reference.reference_id}`}
-                  title="Open source workflow history"
-                >
-                  #{reference.reference_id}
-                </Link>
-              ) : (
-                <Typography.Text code>
-                  #{reference.reference_id}
-                </Typography.Text>
-              )}
-            </li>
-          ))}
+          {references.map((reference) => {
+            const detail = review && referenceLabel(reference, review)
+            const id = reference.reference_id
+            const source = reference.reference_type === 'source'
+            return (
+              <li key={reference.id}>
+                <span className="task-reference-kind">
+                  {referenceLabels[reference.reference_type]}
+                  <small>{label(reference.role)}</small>
+                </span>
+                <div className="task-reference-value">
+                  {source ? (
+                    <Link
+                      to={`/tasks/history?source=${id}`}
+                      title="Open source workflow history"
+                    >
+                      {detail || `#${id}`}
+                    </Link>
+                  ) : (
+                    detail && <span>{detail}</span>
+                  )}
+                  {(!source || detail) && <RecordId id={id} />}
+                </div>
+              </li>
+            )
+          })}
         </ul>
       )}
     </Card>
