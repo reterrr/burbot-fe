@@ -1,10 +1,14 @@
 import { Alert, Layout } from 'antd'
+import { lazy, Suspense } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router'
 import { localReviewEnabled } from '../../app/studio'
+import { TaskLoading } from '../tasks/components/TaskPresentation'
 import AttentionPage from './AttentionPage'
 import SourceReviewPage from './SourceReviewPage'
 import '../tasks/tasks.css'
 import './monitoring.css'
+
+const SnapshotViewer = lazy(() => import('./SnapshotViewer'))
 
 export default function MonitoringRoutes() {
   return (
@@ -19,6 +23,16 @@ export default function MonitoringRoutes() {
             <Route path="attention" element={<AttentionPage />} />
             <Route path="sources" element={<AttentionPage includeAll />} />
             <Route path="sources/:sourceId" element={<SourceReviewPage />} />
+            <Route
+              path="sources/:sourceId/snapshots/:snapshotId"
+              element={
+                <Suspense
+                  fallback={<TaskLoading message="Loading snapshot…" />}
+                >
+                  <SnapshotViewer />
+                </Suspense>
+              }
+            />
             <Route
               path="*"
               element={<Navigate to="/monitoring/attention" replace />}

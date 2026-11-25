@@ -14,10 +14,9 @@ import {
 import type { TableColumnsType } from 'antd'
 import { ExternalLink, History, RefreshCw } from 'lucide-react'
 import { lazy, Suspense, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router'
 import { positiveId } from '../tasks/api/task-client'
 import { websiteUrl } from '../../lib/website-url'
-import { SnapshotDrawer } from '../tasks/components/ReviewInspection'
 import {
   RecordId,
   RequestFailure,
@@ -32,6 +31,7 @@ import { monitoringApi, monitoringQueryKey } from './api'
 import { CanonicalValue } from './CanonicalValue'
 import CheckHistory from './CheckHistory'
 import { businessFieldTitle, sourceTitle } from './presentation'
+import { SnapshotLink } from './SnapshotLink'
 import { CheckTag, FieldTag } from './StatusTags'
 
 const FieldInspector = lazy(() => import('./FieldInspector'))
@@ -163,9 +163,14 @@ export default function SourceReviewPage() {
   const id = positiveId(sourceId)
   const [params, setParams] = useSearchParams()
   const checkId = params.get('check')
+  const { state } = useLocation()
+  const historyPage =
+    typeof state?.historyPage === 'number' ? state.historyPage : undefined
   const [earlierPage, setEarlierPage] = useState(1)
-  const [drawer, setDrawer] = useState<'history' | 'snapshot' | null>(null)
-  const [inspected, setInspected] = useState<string | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(historyPage != null)
+  const [inspected, setInspected] = useState<string | null>(
+    state?.inspectField ?? null,
+  )
   const query = useQuery({
     queryKey: [...monitoringQueryKey, 'source', id, checkId, earlierPage],
     queryFn: ({ signal }) =>
@@ -201,7 +206,7 @@ export default function SourceReviewPage() {
   const change = selectedCheck?.changeStatus ?? null
   function selectCheck(value?: string) {
     setInspected(null)
-    setDrawer(null)
+    setHistoryOpen(false)
     setParams(value && value !== latestCheck?.id ? { check: value } : {})
   }
 
@@ -229,13 +234,15 @@ export default function SourceReviewPage() {
               </Button>
             )}
             {snapshot && (
-              <Button onClick={() => setDrawer('snapshot')}>
-                View snapshot
-              </Button>
+              <SnapshotLink
+                sourceId={snapshot.source_id}
+                snapshotId={snapshot.id}
+                back={{ label: 'Source review' }}
+              />
             )}
             <Button
               icon={<History size={15} />}
-              onClick={() => setDrawer('history')}
+              onClick={() => setHistoryOpen(true)}
             >
               Monitoring history
             </Button>
@@ -373,18 +380,12 @@ export default function SourceReviewPage() {
           />
         </Card>
       </div>
-      {drawer === 'history' && (
+      {historyOpen && (
         <CheckHistory
           sourceId={id}
+          initialPage={historyPage}
           onSelect={selectCheck}
-          onClose={() => setDrawer(null)}
-        />
-      )}
-      {drawer === 'snapshot' && snapshot && (
-        <SnapshotDrawer
-          snapshot={snapshot}
-          open
-          onClose={() => setDrawer(null)}
+          onClose={() => setHistoryOpen(false)}
         />
       )}
       {field && (

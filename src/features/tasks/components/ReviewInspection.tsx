@@ -11,8 +11,9 @@ import {
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { websiteUrl } from '../../../lib/website-url'
+import { SnapshotLink, type SnapshotBack } from '../../monitoring/SnapshotLink'
 import type { MonitoringReview } from '../api/contracts'
-import type { ReviewSelector, ReviewSnapshot } from '../api/review-contracts'
+import type { ReviewSelector } from '../api/review-contracts'
 import { label } from '../presentation'
 import {
   ExecutionStatus,
@@ -203,107 +204,21 @@ function ExecutionDiagnostics({
   )
 }
 
-function SnapshotDetails({ snapshot }: { snapshot: ReviewSnapshot }) {
-  return (
-    <Descriptions
-      size="small"
-      column={1}
-      items={[
-        { key: 'source', label: 'Source', children: `#${snapshot.source_id}` },
-        {
-          key: 'time',
-          label: 'Fetched at',
-          children: <Timestamp value={snapshot.fetched_at} />,
-        },
-        {
-          key: 'page',
-          label: 'Captured page',
-          children: snapshot.page_url ?? '—',
-        },
-        {
-          key: 'type',
-          label: 'Media type',
-          children: snapshot.mime_type ?? '—',
-        },
-        {
-          key: 'representation',
-          label: 'Representation',
-          children: snapshot.representation ?? '—',
-        },
-        {
-          key: 'representation-version',
-          label: 'Representation version',
-          children: snapshot.representation_version ?? '—',
-        },
-        {
-          key: 'hash-algorithm',
-          label: 'Hash algorithm',
-          children: snapshot.hash_algorithm ?? '—',
-        },
-        {
-          key: 'content-hash',
-          label: 'Content hash',
-          children: (
-            <Typography.Text code>
-              {snapshot.content_hash ?? '—'}
-            </Typography.Text>
-          ),
-        },
-        {
-          key: 'structure-hash',
-          label: 'Structure hash',
-          children: (
-            <Typography.Text code>
-              {snapshot.structure_hash ?? '—'}
-            </Typography.Text>
-          ),
-        },
-        {
-          key: 'structure-version',
-          label: 'Structure hash version',
-          children: snapshot.structure_hash_version ?? '—',
-        },
-      ]}
-    />
-  )
-}
-
-export function SnapshotDrawer({
-  snapshot,
-  open,
-  onClose,
-}: {
-  snapshot: ReviewSnapshot
-  open: boolean
-  onClose: () => void
-}) {
-  return (
-    <Drawer
-      title={`Source snapshot #${snapshot.id}`}
-      width="min(100vw, 640px)"
-      open={open}
-      onClose={onClose}
-      destroyOnHidden
-      className="task-review-inspector"
-    >
-      <SnapshotDetails snapshot={snapshot} />
-    </Drawer>
-  )
-}
-
 export function ReviewInspection({
   review,
+  snapshotBack = { label: 'Evidence review' },
 }: {
   review: Pick<
     MonitoringReview,
     'selector' | 'evaluation' | 'source' | 'snapshot' | 'extractionRunId'
   >
+  snapshotBack?: SnapshotBack
 }) {
-  const [drawer, setDrawer] = useState<'selector' | 'snapshot' | null>(null)
+  const [selectorOpen, setSelectorOpen] = useState(false)
   const { selector, source, snapshot } = review
   const url = websiteUrl(source?.url)
   const version = selector?.version
-  const inspectSelector = () => setDrawer('selector')
+  const inspectSelector = () => setSelectorOpen(true)
   return (
     <>
       <SelectorSummary
@@ -334,9 +249,12 @@ export function ReviewInspection({
               </a>
             )}
             {snapshot && (
-              <Button size="small" onClick={() => setDrawer('snapshot')}>
-                View snapshot details
-              </Button>
+              <SnapshotLink
+                sourceId={snapshot.source_id}
+                snapshotId={snapshot.id}
+                back={snapshotBack}
+                small
+              />
             )}
             {selector && (
               <Button size="small" onClick={inspectSelector}>
@@ -365,8 +283,8 @@ export function ReviewInspection({
         <Drawer
           title={`SelectorTree · Version ${version.versionNo}`}
           width="min(100vw, 760px)"
-          open={drawer === 'selector'}
-          onClose={() => setDrawer(null)}
+          open={selectorOpen}
+          onClose={() => setSelectorOpen(false)}
           destroyOnHidden
           className="task-review-inspector"
         >
@@ -433,13 +351,6 @@ export function ReviewInspection({
             />
           </div>
         </Drawer>
-      )}
-      {snapshot && (
-        <SnapshotDrawer
-          snapshot={snapshot}
-          open={drawer === 'snapshot'}
-          onClose={() => setDrawer(null)}
-        />
       )}
     </>
   )

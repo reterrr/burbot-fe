@@ -5,6 +5,7 @@ import { build, createServer, resolveConfig } from 'vite'
 
 const operatorToken = 'server-only-review-fixture-token'
 const review = '/backend/monitoring/reviews/7'
+const snapshot = '/backend/monitoring/sources/57/snapshots/16'
 const reviewResponse = {
   selector: { version: { versionNo: 3, status: 'superseded' } },
   evaluation: {
@@ -183,6 +184,10 @@ test('Vite authorizes only the scoped Monitoring workspace reads', async (t) => 
     '/monitoring/sources/10/review',
     `/monitoring/sources/10/review/${id}/${id}`,
     '/monitoring/sources/10/history?summary=true',
+    '/monitoring/sources/57/snapshots/16/preview',
+    '/monitoring/sources/57/snapshots/16/content?metadataOnly=true',
+    '/monitoring/sources/57/snapshots/16/content',
+    '/monitoring/sources/57/snapshots/16/download',
   ]
   for (const route of routes) {
     const response = await read('/backend' + route)
@@ -193,6 +198,10 @@ test('Vite authorizes only the scoped Monitoring workspace reads', async (t) => 
     '/monitoring/agents',
     '/monitoring/sources/10/approval',
     '/monitoring/sources/10/review/invalid',
+    '/monitoring/sources/57/snapshots/0/content',
+    '/monitoring/sources/57/snapshots/16/delete',
+    '/monitoring/sources/57/snapshots/16/content/extra',
+    '/monitoring/sources/57/snapshots/16',
     '/extraction/selectors',
   ]) {
     assert.equal((await read('/backend' + route)).status, 404)
@@ -200,6 +209,18 @@ test('Vite authorizes only the scoped Monitoring workspace reads', async (t) => 
   assert.equal(
     (await read('/backend' + routes[1], { method: 'POST' })).status,
     404,
+  )
+  assert.equal(
+    (await read(`${snapshot}/download`, { method: 'HEAD' })).status,
+    404,
+  )
+  assert.equal(
+    (
+      await read(`${snapshot}/content`, {
+        headers: { origin: 'https://example.invalid' },
+      })
+    ).status,
+    403,
   )
   assert.deepEqual(
     received,
@@ -228,6 +249,7 @@ test('Review propagates upstream authorization failures', async (t) => {
 test('Task reads continue while reviews are disabled without an operator token', async (t) => {
   const { read, received, vite } = await startStudioProxy(t, undefined)
   assert.equal((await read(review)).status, 404)
+  assert.equal((await read(`${snapshot}/preview`)).status, 404)
   assert.equal((await read('/backend/tasks/7')).status, 200)
   assert.deepEqual(
     received.map(({ url }) => url),
@@ -246,6 +268,7 @@ test('Production mode leaves the development review proxy disabled', async (t) =
     'production',
   )
   assert.equal((await read(review)).status, 404)
+  assert.equal((await read(`${snapshot}/download`)).status, 404)
   assert.deepEqual(received, [])
   assert.equal(
     vite.config.define['globalThis.__BURBOT_LOCAL_REVIEW_ENABLED__'],
@@ -255,6 +278,10 @@ test('Production mode leaves the development review proxy disabled', async (t) =
 
 test('Production assets and preview configuration exclude the server operator token', async (t) => {
   setEnv(t, 'MONITORING_ADMIN_TOKEN', operatorToken)
+  const storageKey = 'minio-access-key-fixture'
+  const storageSecret = 'minio-secret-key-fixture'
+  setEnv(t, 'MONITORING_S3_ACCESS_KEY', storageKey)
+  setEnv(t, 'MONITORING_S3_SECRET_KEY', storageSecret)
   setEnv(t, 'NODE_ENV', 'production')
   const config = await resolveConfig({}, 'build', 'production')
   assert.equal(
@@ -270,10 +297,7 @@ test('Production assets and preview configuration exclude the server operator to
   assert.ok(files.some((file) => file.type === 'chunk' && file.isEntry))
   for (const file of files) {
     const content = file.type === 'chunk' ? file.code : file.source
-    assert.equal(
-      Buffer.from(content).includes(operatorToken),
-      false,
-      file.fileName,
-    )
+    for (const secret of [operatorToken, storageKey, storageSecret])
+      assert.equal(Buffer.from(content).includes(secret), false, file.fileName)
   }
 })

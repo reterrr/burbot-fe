@@ -1,5 +1,7 @@
 import { Card, Descriptions, Tag, Typography } from 'antd'
 import { Link, useLocation, useParams } from 'react-router'
+import { localReviewEnabled } from '../../../app/studio'
+import { SnapshotLink } from '../../monitoring/SnapshotLink'
 import { positiveId } from '../api/task-client'
 import { TaskActions } from '../components/TaskActions'
 import {
@@ -44,6 +46,12 @@ export default function TaskDetailsPage() {
   const source = task.references.find(
     (reference) => reference.reference_type === 'source',
   )
+  const snapshotSourceId = review?.snapshot?.source_id ?? source?.reference_id
+  const snapshotId =
+    review?.snapshot?.id ??
+    task.references.find(
+      (reference) => reference.reference_type === 'source_snapshot',
+    )?.reference_id
   const historyQuery = new URLSearchParams({
     workflow: String(task.workflow_id),
   })
@@ -102,6 +110,24 @@ export default function TaskDetailsPage() {
                           >
                             Open source review
                           </Link>
+                        ),
+                      },
+                    ]
+                  : []),
+                ...(localReviewEnabled &&
+                snapshotSourceId != null &&
+                snapshotId != null
+                  ? [
+                      {
+                        key: 'snapshot',
+                        label: `Snapshot #${snapshotId}`,
+                        children: (
+                          <SnapshotLink
+                            sourceId={snapshotSourceId}
+                            snapshotId={snapshotId}
+                            back={{ label: 'Task details' }}
+                            small
+                          />
                         ),
                       },
                     ]

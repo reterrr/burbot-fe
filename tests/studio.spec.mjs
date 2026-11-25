@@ -615,13 +615,9 @@ test('review inspects the captured selector, match counts, and snapshot without 
   await expect(
     page.getByRole('link', { name: 'Source #7 workflow history' }),
   ).toHaveAttribute('href', '#/tasks/history?source=7')
-  await page.getByRole('button', { name: 'View snapshot details' }).click()
-  const snapshot = page.getByRole('dialog', { name: 'Source snapshot #16' })
-  await expect(snapshot.getByText(pageUrl, { exact: true })).toBeVisible()
   await expect(
-    snapshot.getByText('firefox-dom-1', { exact: true }),
-  ).toBeVisible()
-  await expect(snapshot.locator('iframe, script')).toHaveCount(0)
+    page.getByRole('link', { name: 'View snapshot' }),
+  ).toHaveAttribute('href', '#/monitoring/sources/7/snapshots/16')
   expect(reviewMethods).toEqual(['GET'])
 })
 
