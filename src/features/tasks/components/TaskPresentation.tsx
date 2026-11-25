@@ -2,7 +2,10 @@ import { Alert, Button, Card, Empty, Spin, Tag, Typography } from 'antd'
 import { ArrowLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
+import { TechnicalId } from '../../monitoring/BusinessValue'
+import { sourceTitle } from '../../monitoring/presentation'
 import type {
+  MonitoringReview,
   TaskReference,
   TaskStatus,
   WorkflowStatus,
@@ -115,8 +118,10 @@ const referenceLabels: Record<TaskReference['reference_type'], string> = {
 
 export function TaskReferences({
   references,
+  review,
 }: {
   references: TaskReference[]
+  review?: MonitoringReview
 }) {
   return (
     <Card title="References" size="small">
@@ -127,26 +132,49 @@ export function TaskReferences({
         />
       ) : (
         <ul className="task-references">
-          {references.map((reference) => (
-            <li key={reference.id}>
-              <span>
-                {referenceLabels[reference.reference_type]}{' '}
-                <small>{label(reference.role)}</small>
-              </span>
-              {reference.reference_type === 'source' ? (
-                <Link
-                  to={`/tasks/history?source=${reference.reference_id}`}
-                  title="Open source workflow history"
-                >
-                  #{reference.reference_id}
-                </Link>
-              ) : (
-                <Typography.Text code>
-                  #{reference.reference_id}
-                </Typography.Text>
-              )}
-            </li>
-          ))}
+          {references.map((reference) => {
+            const display = review?.referenceDisplays?.[reference.id]
+            const isSource = reference.reference_type === 'source'
+            const source =
+              isSource && review?.source?.id === reference.reference_id
+                ? review.source
+                : null
+            const title =
+              source && (source.name || source.url)
+                ? sourceTitle(source)
+                : display?.label
+            const text = title || (display?.status && label(display.status))
+            const details = display?.capturedAt ? (
+              <>
+                Captured <Timestamp value={display.capturedAt} />
+              </>
+            ) : (
+              text
+            )
+            return (
+              <li key={reference.id}>
+                <div>
+                  {referenceLabels[reference.reference_type]}
+                  <small>{label(reference.role)}</small>
+                </div>
+                <div className="task-reference-detail">
+                  {isSource ? (
+                    <Link
+                      to={`/tasks/history?source=${reference.reference_id}`}
+                      title="Open source workflow history"
+                    >
+                      {details || `#${reference.reference_id}`}
+                    </Link>
+                  ) : (
+                    details && <span>{details}</span>
+                  )}
+                  {(!isSource || details) && (
+                    <TechnicalId id={reference.reference_id} copy />
+                  )}
+                </div>
+              </li>
+            )
+          })}
         </ul>
       )}
     </Card>

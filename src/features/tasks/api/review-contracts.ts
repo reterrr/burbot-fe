@@ -100,6 +100,7 @@ export interface ReviewEvaluation {
 export interface ReviewSource {
   id: number
   url: string | null
+  name?: string | null
 }
 
 export interface ReviewSnapshot {

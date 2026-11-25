@@ -1,7 +1,9 @@
 import { useOne } from '@refinedev/core'
 import { useLocation } from 'react-router'
-import type { TaskDetail } from '../api/contracts'
+import { localReviewEnabled } from '../../../app/studio'
+import type { MonitoringReview, TaskDetail } from '../api/contracts'
 import { positiveId } from '../api/task-client'
+import type { TaskApiError } from '../api/task-client'
 import { taskResources } from '../api/task-provider'
 
 export function useInboxCount() {
@@ -20,6 +22,19 @@ export function useTask(id: string | undefined) {
     id: valid,
     errorNotification: false,
     queryOptions: { enabled: Boolean(valid) },
+  })
+}
+
+export function useTaskReview(id: string | undefined, enabled: boolean) {
+  const valid = positiveId(id)
+  return useOne<MonitoringReview, TaskApiError>({
+    resource: taskResources.reviews,
+    id: valid,
+    errorNotification: false,
+    queryOptions: {
+      enabled: Boolean(valid && enabled && localReviewEnabled),
+      retry: false,
+    },
   })
 }
 

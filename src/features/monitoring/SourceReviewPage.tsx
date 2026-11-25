@@ -28,6 +28,7 @@ import {
 import { label } from '../tasks/presentation'
 import type { Check, SourceReview, TrackedField } from './api'
 import { monitoringApi, monitoringQueryKey } from './api'
+import { BusinessValue, TechnicalId } from './BusinessValue'
 import CheckHistory from './CheckHistory'
 import { sourceTitle } from './presentation'
 import { CheckTag, FieldTag } from './StatusTags'
@@ -69,8 +70,13 @@ function TrackedFields({
             className="monitoring-field-link"
             onClick={() => inspect(field.selectorUuid)}
           >
-            {field.businessField.name ?? 'Field name unavailable'}
+            {field.businessField.name ?? `Field #${field.businessField.id}`}
           </Button>
+          {field.businessField.name && (
+            <div className="monitoring-context">
+              <TechnicalId name="Field" id={field.businessField.id} />
+            </div>
+          )}
           {field.businessObject && (
             <div className="monitoring-context">
               {field.businessObject.name ??
@@ -81,10 +87,17 @@ function TrackedFields({
       ),
     },
     {
-      title: 'Canonical',
+      title: 'Current canonical value',
       width: '23%',
       render: (_, field) => (
-        <ShortValue value={field.canonicalValue} empty="No canonical value" />
+        <BusinessValue
+          value={field.canonicalValue}
+          display={field.canonicalDisplay}
+          empty={
+            field.canonicalValueId == null ? 'No canonical value' : 'Null value'
+          }
+          compact
+        />
       ),
     },
     {
@@ -199,7 +212,7 @@ export default function SourceReviewPage() {
         back={back}
         subtitle={
           <>
-            <span>Source #{source.id}</span>
+            <TechnicalId name="Source" id={source.id} copy />
             <Tag>{label(source.state)}</Tag>
           </>
         }

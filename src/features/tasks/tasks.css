@@ -160,10 +160,10 @@
   margin: 0;
 }
 .task-references li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) minmax(0, 1.4fr);
+  align-items: start;
+  gap: 12px;
   padding: 8px 0;
 }
 .task-references li + li {
@@ -172,6 +172,26 @@
 .task-references small {
   color: var(--text-soft);
   display: block;
+}
+.task-reference-detail,
+.task-display-stack {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.task-value-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 7px;
+  margin-top: 2px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+.task-technical-id.ant-typography {
+  font-size: 12px;
 }
 
 .task-json,

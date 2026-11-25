@@ -4,6 +4,11 @@ import type {
   ReviewSnapshot,
   ReviewSource,
 } from './review-contracts'
+import type {
+  BusinessEntityDisplay,
+  BusinessFieldDisplay,
+  CanonicalValueContext,
+} from '../../monitoring/business-values'
 
 export const taskTypes = [
   'discover_source',
@@ -75,6 +80,12 @@ export interface TaskDetail extends Task {
   allowed_statuses?: TaskStatus[]
 }
 
+export interface TaskReferenceDisplay {
+  label?: string | null
+  capturedAt?: string | null
+  status?: string | null
+}
+
 export interface InboxContext {
   source_id: number
   source_snapshot_id: number
@@ -129,12 +140,13 @@ export type EvidenceStatus =
   | 'CONFLICT'
   | 'EXTRACTION_FAILED'
 
-export interface MonitoringReview {
+export interface MonitoringReview extends CanonicalValueContext {
   taskId: number
   taskStatus: TaskStatus
   businessObjectFieldId: number | null
-  canonicalValueId: number | null
-  canonicalValue: unknown
+  businessField?: BusinessFieldDisplay | null
+  businessObject?: BusinessEntityDisplay | null
+  referenceDisplays?: Record<number, TaskReferenceDisplay>
   previousObservationId: number | null
   observationId: number | null
   previousEvidence: string | string[] | null

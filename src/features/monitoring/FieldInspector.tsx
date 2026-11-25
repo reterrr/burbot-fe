@@ -10,6 +10,8 @@ import {
 } from '../tasks/components/TaskPresentation'
 import type { SourceReview, TrackedField } from './api'
 import { fieldStatuses, monitoringApi, monitoringQueryKey } from './api'
+import { TechnicalId } from './BusinessValue'
+import { businessFieldType } from './business-values'
 import { FieldTag } from './StatusTags'
 
 export default function FieldInspector({
@@ -23,6 +25,7 @@ export default function FieldInspector({
 }) {
   const checkId = review.selectedCheck?.id
   const recorded = Boolean(checkId && field.status)
+  const fieldType = businessFieldType(field.businessField)
   const inspection = useQuery({
     queryKey: [
       ...monitoringQueryKey,
@@ -36,18 +39,31 @@ export default function FieldInspector({
   })
   return (
     <Drawer
-      title={field.businessField.name ?? 'Tracked field'}
+      title={field.businessField.name ?? `Field #${field.businessField.id}`}
       width="min(100vw, 850px)"
       open
       onClose={onClose}
       className="task-review-inspector"
     >
       <div className="task-stack">
+        <div className="task-value-detail">
+          {fieldType && <span>{fieldType}</span>}
+          {field.businessField.persistentKey && (
+            <span>{field.businessField.persistentKey}</span>
+          )}
+          <TechnicalId name="Field" id={field.businessField.id} copy />
+          {field.businessObjectFieldId != null && (
+            <TechnicalId name="Slot" id={field.businessObjectFieldId} copy />
+          )}
+        </div>
         <Space wrap>
-          {field.businessObject?.name && (
-            <Typography.Text>
-              Business object {field.businessObject.name}
-            </Typography.Text>
+          {field.businessObject && (
+            <>
+              {field.businessObject.name && (
+                <Typography.Text>{field.businessObject.name}</Typography.Text>
+              )}
+              <TechnicalId name="BusinessObject" id={field.businessObject.id} />
+            </>
           )}
           <FieldTag status={field.status} />
           {field.task && (

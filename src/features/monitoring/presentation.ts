@@ -1,11 +1,17 @@
 import { websiteUrl } from '../../lib/website-url'
-import type { Source } from './api'
+interface SourceLabel {
+  id: number
+  url: string | null
+  name?: string | null
+}
 
-export function sourceDomain(source: Source) {
+export function sourceDomain(source: SourceLabel) {
   const url = websiteUrl(source.url)
   return url ? new URL(url).hostname : null
 }
 
-export function sourceTitle(source: Source) {
-  return source.name ?? sourceDomain(source) ?? `Source #${source.id}`
+export function sourceTitle(source: SourceLabel) {
+  return (
+    source.name || sourceDomain(source) || source.url || `Source #${source.id}`
+  )
 }

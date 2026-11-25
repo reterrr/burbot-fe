@@ -28,6 +28,7 @@ import {
   monitoringQueryKey,
 } from './api'
 import { sourceDomain, sourceTitle } from './presentation'
+import { TechnicalId } from './BusinessValue'
 import { CheckTag } from './StatusTags'
 
 const pageSize = 20
@@ -58,7 +59,7 @@ function SourceItem({ source }: { source: AttentionSource }) {
         <div className="monitoring-source-heading">
           <Typography.Title level={3}>{sourceTitle(source)}</Typography.Title>
           <div className="monitoring-context">
-            <span>Source #{source.id}</span>
+            <TechnicalId name="Source" id={source.id} copy />
             {domain && source.name && <span>{domain}</span>}
             <CheckTag check={source.lastCheck} />
             {source.lastCheck && (

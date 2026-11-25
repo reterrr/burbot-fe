@@ -52,6 +52,7 @@ function tracked(name, id, status, changes = {}) {
     status,
     canonicalValueId: 18,
     canonicalValue: '1 December',
+    canonicalDisplay: { kind: 'string', rawValue: '1 December' },
     currentEvidence: '15 December',
     previousEvidence: '1 December',
     previousObservationId: 18,
@@ -371,6 +372,7 @@ test('Initial evidence explains matching and differing canonical text', async ({
     tracked('No canonical funding', 10, 'FIELD_NEW', {
       canonicalValueId: null,
       canonicalValue: null,
+      canonicalDisplay: null,
       previousEvidence: null,
     }),
   ]
@@ -400,6 +402,307 @@ test('Initial evidence explains matching and differing canonical text', async ({
     ).toBeVisible()
     await drawer.getByRole('button', { name: 'Close' }).click()
   }
+})
+
+test.describe('Typed canonical values', () => {
+  test.use({ locale: 'pl-PL', timezoneId: 'Europe/Warsaw' })
+
+  test('Task #155 and Source Review show the same readable reference', async ({
+    page,
+  }) => {
+    const name =
+      'Podmiotowy System Finansowania - realizacja usług rozwojowych w województwie podlaskim 2024 - 2029'
+    const observed = 'Podmiotowy System Finansowania'
+    const projectSource = {
+      id: 572,
+      url: 'https://wupbialystok.praca.gov.pl/projects',
+      name: null,
+      state: 'ACTIVE',
+    }
+    const capture = { ...check, snapshotId: 268, extractionRunId: 71 }
+    const snapshot = {
+      id: 268,
+      source_id: 572,
+      page_url: projectSource.url,
+      fetched_at: date,
+      mime_type: 'text/html',
+    }
+    const field = tracked('Projekt', 271, 'FIELD_NEW', {
+      businessField: {
+        id: 271,
+        name: 'Projekt',
+        persistentKey: 'project_id',
+        kind: 'reference',
+        referenceEntity: { id: 68, name: 'Project' },
+      },
+      businessObjectFieldId: 8608,
+      canonicalValueId: 3639,
+      canonicalValue: 291,
+      canonicalDisplay: {
+        kind: 'reference',
+        label: name,
+        labelBasis: 'current',
+        rawValue: 291,
+        resolved: true,
+        target: { type: 'business_object', id: 291, entityId: 68 },
+      },
+      observationId: 150,
+      currentEvidence: observed,
+      previousObservationId: null,
+      previousEvidence: null,
+    })
+    const references = [
+      ['source', 572],
+      ['source_snapshot', 268],
+      ['extraction_run', 71],
+      ['observation', 150],
+      ['business_field', 271],
+      ['business_object_field', 8608],
+    ].map(([reference_type, reference_id], id) => ({
+      id,
+      reference_type,
+      reference_id,
+      role: 'context',
+    }))
+    const versionUuid = uuid(12)
+    const inspection = {
+      extractionRunId: 71,
+      selector: {
+        identity: {
+          uuid: field.selectorUuid,
+          target: { objectId: 'project', field: 'project_id' },
+          createdAt: date,
+        },
+        versionId: 12,
+        version: {
+          uuid: versionUuid,
+          selectorUuid: field.selectorUuid,
+          status: 'active',
+          versionNo: 1,
+          createdAt: date,
+          recipes: [],
+        },
+      },
+      evaluation: {
+        uuid: uuid(13),
+        pageUrl: projectSource.url,
+        evaluatedAt: date,
+        sourceSnapshotId: 268,
+        extractionRunId: 71,
+        provenance: 'browser_agent_reported',
+        result: {
+          status: 'success',
+          selectorVersionUuid: versionUuid,
+          rawValue: observed,
+          recipeResults: [],
+        },
+      },
+    }
+    const taskReview = {
+      taskId: 155,
+      ...field,
+      ...inspection,
+      source: projectSource,
+      snapshot,
+      taskStatus: 'pending',
+      requiresReview: true,
+      evidenceStatus: 'INITIAL_EVIDENCE',
+      referenceDisplays: {
+        0: { label: projectSource.url },
+        1: { capturedAt: date },
+        2: { status: 'succeeded' },
+        3: { label: observed },
+        4: { label: 'Projekt' },
+        5: { label: 'Projekt · Recruitment' },
+      },
+    }
+    await page.route('**/backend/tasks/155', (route) =>
+      route.fulfill({
+        json: {
+          id: 155,
+          workflow_id: 3,
+          title: 'Review initial evidence',
+          type: 'review_source_change',
+          status: 'pending',
+          created_at: date,
+          references,
+          metadata_json: { monitoringJobId: capture.id },
+          allowed_statuses: ['in_progress', 'completed'],
+        },
+      }),
+    )
+    await page.route('**/backend/monitoring/reviews/155', (route) =>
+      route.fulfill({ json: taskReview }),
+    )
+    await page.route('**/backend/monitoring/sources/572/review?*', (route) =>
+      route.fulfill({
+        json: review([field], {
+          id: 572,
+          source: projectSource,
+          latestCheck: capture,
+          latestCompletedCheck: capture,
+          selectedCheck: capture,
+          snapshot,
+        }),
+      }),
+    )
+    await page.route(
+      `**/backend/monitoring/sources/572/review/${capture.id}/${field.selectorUuid}`,
+      (route) => route.fulfill({ json: inspection }),
+    )
+
+    await page.goto('/#/tasks/155')
+    const taskReferences = page.locator('.task-references')
+    await expect(
+      taskReferences.getByRole('link', { name: 'wupbialystok.praca.gov.pl' }),
+    ).toBeVisible()
+    await expect(taskReferences.getByText('Captured')).toBeVisible()
+    await expect(taskReferences.getByText('Succeeded')).toBeVisible()
+    await expect(
+      taskReferences.getByText(observed, { exact: true }),
+    ).toBeVisible()
+    await expect(
+      taskReferences.getByText('Projekt · Recruitment'),
+    ).toBeVisible()
+    await page.getByRole('link', { name: 'Open evidence review' }).click()
+    const evidence = page.getByTestId('evidence-comparison')
+    await expect(
+      evidence.getByText('reference → Project', { exact: true }),
+    ).toBeVisible()
+    await expect(evidence.getByText(name, { exact: true })).toBeVisible()
+    await expect(
+      evidence.getByText('BusinessObject #291', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      evidence.getByText('Value record #3639', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      evidence.getByText(observed, { exact: true }).first(),
+    ).toBeVisible()
+    await expect(
+      evidence.getByText('Reference resolved successfully.'),
+    ).toBeVisible()
+    await expect(
+      evidence.getByText('Evidence has not yet been semantically validated.'),
+    ).toBeVisible()
+    await expect(
+      evidence.getByText('Recorded evidence matches', { exact: false }),
+    ).toHaveCount(0)
+    await expect(evidence.getByText('Success', { exact: true })).toBeVisible()
+    await expect(
+      evidence.getByRole('button', { name: 'Inspect selector', exact: true }),
+    ).toBeVisible()
+
+    await page.goto('/#/monitoring/sources/572')
+    const row = page.getByRole('row').filter({ hasText: 'Projekt' })
+    await expect(row.getByText(name, { exact: true })).toBeVisible()
+    await expect(row.getByText('Current name', { exact: true })).toBeVisible()
+    await row.getByRole('button', { name: 'Projekt' }).click()
+    const inspector = page.getByRole('dialog', { name: 'Projekt' })
+    await expect(inspector.getByText(name, { exact: true })).toBeVisible()
+    await expect(
+      inspector.getByText(observed, { exact: true }).first(),
+    ).toBeVisible()
+    await expect(
+      inspector.getByText('Evidence has not yet been semantically validated.'),
+    ).toBeVisible()
+  })
+
+  test('renders typed scalars, lists, and fallbacks without resolving raw evidence', async ({
+    page,
+  }) => {
+    const listItems = ['Yes', 'No'].map((_, index) => ({
+      kind: 'boolean',
+      rawValue: index === 0,
+    }))
+    const data = [
+      ['Integer', 291, { kind: 'integer' }, '291'],
+      [
+        'BigInteger',
+        Number(9_223_372_036_854_775_807n),
+        { kind: 'biginteger', label: '9223372036854775807' },
+        /9\s223\s372\s036\s854\s775\s807/,
+      ],
+      ['String', 'Project label', { kind: 'string' }, 'Project label'],
+      ['Float', 1234.56789, { kind: 'float' }, '1234,56789'],
+      [
+        'Decimal',
+        '9007199254740993.12345',
+        { kind: 'decimal' },
+        /9\s007\s199\s254\s740\s993,12345/,
+      ],
+      ['Boolean', false, { kind: 'boolean' }, 'No'],
+      ['Date', '2026-11-25', { kind: 'date' }, '25.11.2026'],
+      [
+        'Datetime',
+        '2026-11-24T15:05:00Z',
+        { kind: 'datetime' },
+        /24 lis 2026.*16:05/,
+      ],
+      [
+        'List',
+        [true, false],
+        { kind: 'list', itemKind: 'boolean', items: listItems },
+        /Yes.*No/,
+      ],
+      [
+        'Source',
+        291,
+        {
+          kind: 'source',
+          label: 'https://example.org/291',
+          labelBasis: 'current',
+          resolved: true,
+          target: { type: 'source', id: 291 },
+        },
+        'https://example.org/291',
+      ],
+      [
+        'Missing project',
+        291,
+        {
+          kind: 'reference',
+          label: 'BusinessObject #291',
+          resolved: false,
+          target: { type: 'business_object', id: 291 },
+        },
+        'BusinessObject #291',
+      ],
+      ['Null', null, { kind: 'unknown' }, 'Null value'],
+      ['Unknown', { extra: ['ok'] }, { kind: 'new-type' }, /"extra":\["ok"\]/],
+    ]
+    const fields = data.map(([title, value, display], index) =>
+      tracked(title, index + 8, 'FIELD_NEW', {
+        canonicalValue: value,
+        canonicalDisplay: { ...display, rawValue: value },
+        currentEvidence: '291',
+        previousEvidence: null,
+      }),
+    )
+    await page.route('**/backend/monitoring/sources/7/review?*', (route) =>
+      route.fulfill({ json: review(fields) }),
+    )
+    await page.route(
+      `**/backend/monitoring/sources/7/review/${check.id}/*`,
+      (route) => route.fulfill({ json: { selector: null, evaluation: null } }),
+    )
+    await page.goto('/#/monitoring/sources/7')
+    for (const [title, , , expected] of data) {
+      const row = page
+        .getByRole('row')
+        .filter({ has: page.getByRole('button', { name: title, exact: true }) })
+      await expect(row.getByRole('cell').nth(1)).toContainText(expected)
+      await expect(row.getByRole('cell').nth(2)).toHaveText('291')
+    }
+    await page.getByRole('button', { name: 'Missing project' }).click()
+    const inspector = page.getByRole('dialog', { name: 'Missing project' })
+    await expect(
+      inspector.getByText('Referenced business object could not be resolved.'),
+    ).toBeVisible()
+    await expect(
+      inspector.getByText('Recorded evidence matches', { exact: false }),
+    ).toHaveCount(0)
+  })
 })
 
 test('Failed checks stay distinct from the latest completed snapshot', async ({
