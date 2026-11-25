@@ -25,6 +25,7 @@
 
 .monitoring-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 0 clamp(16px, 3.4vw, 42px);
   border-bottom: 1px solid var(--border);

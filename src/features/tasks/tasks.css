@@ -118,6 +118,22 @@
 .task-row-title {
   font-weight: 600;
 }
+.task-object-name {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+.task-object-field.ant-btn {
+  height: auto;
+  padding: 0;
+  white-space: normal;
+  text-align: left;
+  color: #b5aaff;
+}
+.task-object-section-title.ant-typography {
+  margin: 0;
+  font-size: 19px;
+}
 .task-mono {
   font-family: var(--mono);
   font-size: 11px;

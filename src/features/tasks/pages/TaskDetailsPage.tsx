@@ -46,6 +46,12 @@ export default function TaskDetailsPage() {
   const source = task.references.find(
     (reference) => reference.reference_type === 'source',
   )
+  const objectTarget = task.references.find(
+    (reference) =>
+      reference.reference_type === 'business_object' &&
+      reference.role === 'target',
+  )
+  const objectId = objectTarget?.reference_id ?? review?.businessObject?.id
   const snapshotSourceId = review?.snapshot?.source_id ?? source?.reference_id
   const snapshotId =
     review?.snapshot?.id ??
@@ -158,9 +164,16 @@ export default function TaskDetailsPage() {
           {hasReview(task) && (
             <Card title="Monitoring evidence" size="small">
               <div className="task-review-link">
-                <Link to={`/tasks/${task.id}/review`} state={state}>
-                  Open evidence review
-                </Link>
+                {localReviewEnabled && objectId != null && (
+                  <Link to={`/tasks/objects/${objectId}?task=${task.id}`}>
+                    Open object review
+                  </Link>
+                )}
+                {task.type !== 'review_business_object' && (
+                  <Link to={`/tasks/${task.id}/review`} state={state}>
+                    Open evidence review
+                  </Link>
+                )}
                 {typeof task.metadata_json?.evidenceStatus === 'string' && (
                   <Tag>{label(task.metadata_json.evidenceStatus)}</Tag>
                 )}

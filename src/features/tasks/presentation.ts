@@ -9,6 +9,13 @@ export function titleOf(task: Task): string {
   return task.title?.trim() || label(task.type)
 }
 
+export function readPage(value: string | null, size: number) {
+  const page = Number(value ?? 1)
+  return Number.isInteger(page) && page >= 1 && (page - 1) * size <= 2147483647
+    ? page
+    : 1
+}
+
 export function hasReview(task: Task): boolean {
   return (
     Boolean(task.metadata_json?.monitoringKey) ||

@@ -9,7 +9,7 @@ const taskReads =
 const taskStatus = /^\/backend\/tasks\/[1-9]\d*\/status$/
 const uuid = '[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}'
 const reviewRead = new RegExp(
-  String.raw`^/backend/monitoring/(?:reviews/[1-9]\d*|attention/sources|sources/[1-9]\d*/(?:history|review(?:/${uuid}/${uuid})?|snapshots/[1-9]\d*/(?:preview|content|download)))$`,
+  String.raw`^/backend/monitoring/(?:reviews/[1-9]\d*|objects(?:/[1-9]\d*/review)?|object-reviews/[1-9]\d*/history|attention/sources|sources/[1-9]\d*/(?:history|review(?:/${uuid}/${uuid})?|snapshots/[1-9]\d*/(?:preview|content|download)))$`,
 )
 
 function localStudioApi(reviewEnabled: boolean): Plugin {

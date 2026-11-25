@@ -17,6 +17,11 @@ export default function MonitoringRoutes() {
         <nav className="monitoring-nav" aria-label="Monitoring navigation">
           <NavLink to="/monitoring/attention">Attention</NavLink>
           <NavLink to="/monitoring/sources">Sources</NavLink>
+          {localReviewEnabled && (
+            <NavLink to="/tasks" end>
+              Objects requiring attention
+            </NavLink>
+          )}
         </nav>
         {localReviewEnabled ? (
           <Routes>

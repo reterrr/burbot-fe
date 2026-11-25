@@ -12,16 +12,19 @@ import {
 import type { SourceReview, TrackedField } from './api'
 import { fieldStatuses, monitoringApi, monitoringQueryKey } from './api'
 import { businessFieldTitle, businessFieldType } from './presentation'
+import type { SnapshotBack } from './SnapshotLink'
 import { FieldTag } from './StatusTags'
 
 export default function FieldInspector({
   field,
   review,
   onClose,
+  snapshotBack,
 }: {
   field: TrackedField
-  review: SourceReview
+  review: Pick<SourceReview, 'id' | 'source' | 'snapshot' | 'selectedCheck'>
   onClose: () => void
+  snapshotBack?: SnapshotBack
 }) {
   const checkId = review.selectedCheck?.id
   const fieldType = businessFieldType(field.businessField)
@@ -76,7 +79,7 @@ export default function FieldInspector({
                 <Tag>Superseded workflow</Tag>
               )}
               {field.task.originCheckId !== checkId && (
-                <Tag>Task from a different check</Tag>
+                <Tag>Task started in an earlier check</Tag>
               )}
             </>
           )}
@@ -104,10 +107,13 @@ export default function FieldInspector({
           ))}
         {(!recorded || !inspection.isPending) && (
           <ReviewInspection
-            snapshotBack={{
-              label: 'Field inspector',
-              state: { inspectField: field.selectorUuid },
-            }}
+            sourceCheckId={checkId}
+            snapshotBack={
+              snapshotBack ?? {
+                label: 'Field inspector',
+                state: { inspectField: field.selectorUuid },
+              }
+            }
             review={{
               ...inspection.data,
               source: review.source,

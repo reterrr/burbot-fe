@@ -41,8 +41,17 @@ export function useTaskBackLink() {
       to: `/tasks/history${state.workflowSearch}`,
       label: 'Workflow history',
     }
+  if (
+    typeof state?.objectReviewBack?.to === 'string' &&
+    state.objectReviewBack.to.startsWith('/tasks/objects/')
+  )
+    return { ...state.objectReviewBack, label: 'Object review' }
+  const path =
+    ['/tasks', '/tasks/all', '/tasks/unbound'].find(
+      (path) => path === state?.inboxPath,
+    ) ?? '/tasks'
   return {
-    to: `/tasks${typeof state?.inboxSearch === 'string' ? state.inboxSearch : ''}`,
-    label: 'Task inbox',
+    to: `${path}${typeof state?.inboxSearch === 'string' ? state.inboxSearch : ''}`,
+    label: path === '/tasks/unbound' ? 'Unbound observations' : 'Task inbox',
   }
 }

@@ -95,7 +95,7 @@ test('Inbox pages and filters are server queries and survive navigation', async 
   await page.route('**/backend/tasks/42', (route) =>
     route.fulfill({ json: detail() }),
   )
-  await page.goto('/#/tasks')
+  await page.goto('/#/tasks/all')
   await expect(page.getByRole('heading', { name: 'Task inbox' })).toBeVisible()
   await expect(page.getByTestId('task-inbox-count')).toHaveText('23')
   await expect(page.getByRole('link', { name: 'Review task 41' })).toBeVisible()
@@ -138,7 +138,7 @@ test('Inbox shows Retry when the backend is unavailable and an empty state after
       ? route.fulfill({ status: 503, json: { detail: 'Service unavailable' } })
       : route.fulfill({ json: paged([]) }),
   )
-  await page.goto('/#/tasks')
+  await page.goto('/#/tasks/all')
   await expect(page.getByText('Could not load the Inbox')).toBeVisible()
   await expect(page.getByText('Service unavailable')).toBeVisible()
   unavailable = false
@@ -720,7 +720,9 @@ test('Business routes keep the selected model and its Monaco draft across Task n
   ).toHaveValue('2')
   await expect(editor).toContainText('PreservedDraft', { timeout: 20_000 })
   await page.getByRole('link', { name: 'Task inbox', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Task inbox' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Tasks by business object' }),
+  ).toBeVisible()
   await page
     .getByRole('link', { name: 'Business objects', exact: true })
     .click()
