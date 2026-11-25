@@ -1,5 +1,13 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Alert, Button, Card, Descriptions, Tabs, Typography } from 'antd'
+import {
+  Alert,
+  Button,
+  Card,
+  Descriptions,
+  Space,
+  Tabs,
+  Typography,
+} from 'antd'
 import { Download } from 'lucide-react'
 import { lazy, Suspense, useState } from 'react'
 import { useLocation, useParams } from 'react-router'
@@ -12,6 +20,7 @@ import {
   Timestamp,
 } from '../tasks/components/TaskPresentation'
 import { monitoringQueryKey } from './api'
+import OpenInFirefox from './OpenInFirefox'
 import { sourceTitle } from './presentation'
 import { snapshotApi, type SnapshotDetails } from './snapshot-api'
 
@@ -158,15 +167,27 @@ export default function SnapshotViewer() {
           )
         }
         actions={
-          details.data && (
-            <Button
-              icon={<Download size={16} />}
-              disabled={!details.data.artifact}
-              loading={download.isPending}
-              onClick={() => download.mutate()}
-            >
-              Download original HTML
-            </Button>
+          details.data &&
+          sourceId &&
+          snapshotId && (
+            <Space wrap>
+              <OpenInFirefox
+                key={`${sourceId}:${snapshotId}`}
+                sourceId={sourceId}
+                snapshotId={snapshotId}
+                selectorContext={state?.selectorContext}
+                disabled={!details.data.artifact}
+                primary
+              />
+              <Button
+                icon={<Download size={16} />}
+                disabled={!details.data.artifact}
+                loading={download.isPending}
+                onClick={() => download.mutate()}
+              >
+                Download original HTML
+              </Button>
+            </Space>
           )
         }
       />

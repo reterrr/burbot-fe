@@ -1,6 +1,7 @@
-import { Button } from 'antd'
+import { Button, Space } from 'antd'
 import { useHref, useLinkClickHandler, useLocation } from 'react-router'
-import { snapshotPath } from './snapshot-api'
+import OpenInFirefox from './OpenInFirefox'
+import { snapshotPath, type SnapshotSelectorContext } from './snapshot-api'
 
 export interface SnapshotBack {
   label: string
@@ -11,11 +12,13 @@ export function SnapshotLink({
   sourceId,
   snapshotId,
   back,
+  selectorContext,
   small = false,
 }: {
   sourceId: string | number
   snapshotId: number
   back: SnapshotBack
+  selectorContext?: SnapshotSelectorContext
   small?: boolean
 }) {
   const location = useLocation()
@@ -23,6 +26,7 @@ export function SnapshotLink({
   const href = useHref(to)
   const onClick = useLinkClickHandler<HTMLAnchorElement>(to, {
     state: {
+      selectorContext,
       snapshotBack: {
         to: location.pathname + location.search,
         label: back.label,
@@ -31,8 +35,17 @@ export function SnapshotLink({
     },
   })
   return (
-    <Button href={href} onClick={onClick} size={small ? 'small' : undefined}>
-      View snapshot
-    </Button>
+    <Space wrap size={6}>
+      <Button href={href} onClick={onClick} size={small ? 'small' : undefined}>
+        View snapshot
+      </Button>
+      <OpenInFirefox
+        key={`${sourceId}:${snapshotId}:${selectorContext?.extractionRunId ?? ''}`}
+        sourceId={sourceId}
+        snapshotId={snapshotId}
+        selectorContext={selectorContext}
+        small={small}
+      />
+    </Space>
   )
 }
