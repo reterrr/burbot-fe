@@ -181,6 +181,9 @@ test('Vite authorizes only the scoped Monitoring workspace reads', async (t) => 
   const id = '00000000-0000-4000-8000-000000000001'
   const routes = [
     '/monitoring/attention/sources?offset=20&limit=20',
+    '/monitoring/objects?offset=20&limit=20',
+    '/monitoring/objects/291/review?taskId=155',
+    '/monitoring/object-reviews/155/history?offset=5&limit=5',
     '/monitoring/sources/10/review',
     `/monitoring/sources/10/review/${id}/${id}`,
     '/monitoring/sources/10/history?summary=true',
@@ -197,6 +200,9 @@ test('Vite authorizes only the scoped Monitoring workspace reads', async (t) => 
   for (const route of [
     '/monitoring/agents',
     '/monitoring/sources/10/approval',
+    '/monitoring/objects/0/review',
+    '/monitoring/objects/291',
+    '/monitoring/object-reviews/155/status',
     '/monitoring/sources/10/review/invalid',
     '/monitoring/sources/57/snapshots/0/content',
     '/monitoring/sources/57/snapshots/16/delete',
@@ -206,10 +212,12 @@ test('Vite authorizes only the scoped Monitoring workspace reads', async (t) => 
   ]) {
     assert.equal((await read('/backend' + route)).status, 404)
   }
-  assert.equal(
-    (await read('/backend' + routes[1], { method: 'POST' })).status,
-    404,
-  )
+  for (const route of routes) {
+    assert.equal(
+      (await read('/backend' + route, { method: 'POST' })).status,
+      404,
+    )
+  }
   assert.equal(
     (await read(`${snapshot}/download`, { method: 'HEAD' })).status,
     404,

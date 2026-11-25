@@ -37,8 +37,8 @@ const toFilters = (values: InboxFilters) =>
       value: value.trim(),
     }))
 
-export default function InboxPage() {
-  const { search } = useLocation()
+export default function InboxPage({ unbound = false }: { unbound?: boolean }) {
+  const { pathname, search } = useLocation()
   const navigate = useNavigate()
   const { query: countQuery } = useInboxCount()
   const {
@@ -54,7 +54,13 @@ export default function InboxPage() {
     resource: taskResources.tasks,
     syncWithLocation: true,
     pagination: { pageSize: 20, mode: 'server' },
-    filters: { mode: 'server', defaultBehavior: 'replace' },
+    filters: {
+      mode: 'server',
+      defaultBehavior: 'replace',
+      permanent: unbound
+        ? [{ field: 'type', operator: 'eq', value: 'resolve_observation' }]
+        : [],
+    },
     onSearch: toFilters,
     errorNotification: false,
     queryOptions: {
@@ -87,7 +93,7 @@ export default function InboxPage() {
     void countQuery.refetch()
   }
 
-  const fromInbox = { inboxSearch: search }
+  const fromInbox = { inboxPath: pathname, inboxSearch: search }
   const columns: TableColumnsType<InboxTask> = [
     {
       title: 'ID',
@@ -167,8 +173,10 @@ export default function InboxPage() {
   return (
     <div className="task-page">
       <TaskHeader
-        title="Task inbox"
-        subtitle="Actionable tasks from active source workflows."
+        title={unbound ? 'Unbound observations' : 'Task inbox'}
+        subtitle={
+          unbound ? undefined : 'Actionable tasks from active source workflows.'
+        }
         actions={
           <Button
             icon={<RefreshCw size={15} />}
@@ -187,13 +195,15 @@ export default function InboxPage() {
             placeholder="Any status"
           />
         </Form.Item>
-        <Form.Item name="type" label="Task type">
-          <Select
-            allowClear
-            options={filterOptions(taskTypes)}
-            placeholder="Any type"
-          />
-        </Form.Item>
+        {!unbound && (
+          <Form.Item name="type" label="Task type">
+            <Select
+              allowClear
+              options={filterOptions(taskTypes)}
+              placeholder="Any type"
+            />
+          </Form.Item>
+        )}
         <Form.Item name="reason" label="Reason">
           <Select
             allowClear
@@ -259,9 +269,11 @@ export default function InboxPage() {
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                   description={
-                    filters.length
-                      ? 'No tasks match the filters'
-                      : 'No actionable tasks'
+                    unbound && filters.length === 1
+                      ? 'No unbound observations require review'
+                      : filters.length
+                        ? 'No tasks match the filters'
+                        : 'No actionable tasks'
                   }
                 />
               ),

@@ -91,12 +91,15 @@ the frontend therefore uses the available schema revision endpoints.
 
 ## Task management
 
-The Studio includes four hash routes for local development with the matching
-Burbot Task API.
+The Studio includes these hash routes for local development with the matching
+Burbot Task and Monitoring APIs.
 
 | Route | Workflow |
 | --- | --- |
-| `#/tasks` | Actionable Inbox, count badge, server filters, pagination, and status actions |
+| `#/tasks` | Default object Inbox when the local operator token is configured. Rows show the object name, stored code, affected fields, Sources, and latest check time. |
+| `#/tasks/objects/:objectId` | Source-scoped review tasks, affected fields, and paginated finding history. Add `task=:id` to focus on one review. |
+| `#/tasks/all` | Technical task Inbox with server filters, pagination, and status actions |
+| `#/tasks/unbound` | `RESOLVE_OBSERVATION` tasks |
 | `#/tasks/:id` | Task details, workflow and evidence references, metadata, and available transitions |
 | `#/tasks/:id/review` | Canonical value, previous/current evidence, and source references when the local operator token is configured |
 | `#/tasks/history?source=:id` | Paginated source workflows. Add `workflow=:id` to open its details and historical tasks |
@@ -107,6 +110,14 @@ backend totals, passes `offset` and `limit`, and verifies `applied_filters`
 before displaying filtered results. `allowed_statuses` comes from the backend's
 current workflow and task rules. A successful status update refreshes dependent
 queries. A stale workflow returns `409` and causes the Studio to reload the task.
+
+The object Inbox uses the server's grouped and paginated Monitoring read model.
+It displays the current object name and code resolved by the backend. The
+Object Review opens the existing Field Inspector against the recorded check,
+including previous/current evidence, the pinned SelectorTree, and the HTML
+snapshot. Start and Complete use the existing status operation. Field outcomes
+remain the outcomes recorded at capture time. Evidence acceptance and canonical
+updates are separate operations.
 
 The backend endpoints are `GET /tasks/inbox`, `GET /tasks/inbox/count`,
 `GET /tasks/{id}`, `PATCH /tasks/{id}/status`,
@@ -123,6 +134,7 @@ Open **Monitoring → Attention** from the Studio activity bar.
 | --- | --- |
 | `#/monitoring/attention` | Server-paginated sources that need attention, with source and field outcomes, open tasks, search, filters, and priority sorting |
 | `#/monitoring/sources` | All monitored sources, including healthy sources |
+| `#/tasks` | **Objects requiring attention** opens the shared object Inbox |
 | `#/monitoring/sources/:sourceId` | Latest check, reviewable history, canonical and captured values, field inspector, and open tasks from earlier checks |
 | `#/monitoring/sources/:sourceId/snapshots/:snapshotId` | Isolated Preview, searchable HTML Source, capture details, and original HTML download |
 
@@ -149,7 +161,8 @@ contract is available for the Task module.
 
 In local development, Vite forwards the allowlisted GET requests beneath
 `/backend/monitoring` to `/monitoring` at `BURBOT_API_TARGET`. This covers task
-reviews, Attention, Source Review, check history, captured field inspection, and
+reviews, object Inbox, object review and finding history, Attention, Source
+Review, check history, captured field inspection, and
 the snapshot preview, content, and download routes. Vite reads
 `MONITORING_ADMIN_TOKEN` from its server environment and sets the upstream
 Bearer header. The browser receives only the Review enabled flag. With an

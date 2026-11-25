@@ -22,9 +22,11 @@ const actions: Record<
 export function TaskActions({
   task,
   compact = false,
+  review = false,
 }: {
   task: Pick<TaskDetail, 'id' | 'status' | 'allowed_statuses'>
   compact?: boolean
+  review?: boolean
 }) {
   const { modal } = App.useApp()
   const invalidate = useInvalidate()
@@ -35,6 +37,12 @@ export function TaskActions({
     { status: TaskStatus }
   >()
   const allowed = task.allowed_statuses ?? []
+  const actionTitle = (status: TaskStatus) =>
+    review && status === 'in_progress'
+      ? 'Start review'
+      : review && status === 'completed'
+        ? 'Complete review'
+        : actions[status].title
 
   async function update(status: TaskStatus) {
     try {
@@ -96,12 +104,14 @@ export function TaskActions({
       return
     }
     const prompt =
-      status === 'failed'
-        ? `Mark task #${task.id} as failed?`
-        : `${status === 'cancelled' ? 'Cancel' : 'Complete'} task #${task.id}?`
+      review && status === 'completed'
+        ? `Complete review #${task.id}?`
+        : status === 'failed'
+          ? `Mark task #${task.id} as failed?`
+          : `${status === 'cancelled' ? 'Cancel' : 'Complete'} task #${task.id}?`
     modal.confirm({
       title: prompt,
-      okText: action.title,
+      okText: actionTitle(status),
       cancelText: 'Go back',
       okButtonProps: { danger: action.danger },
       onOk: () => update(status),
@@ -128,7 +138,7 @@ export function TaskActions({
           disabled={mutation.isPending}
           onClick={() => run(status)}
         >
-          {actions[status].title}
+          {actionTitle(status)}
         </Button>
       ))}
       {!compact && secondary.length > 0 && (

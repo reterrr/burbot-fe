@@ -1,6 +1,7 @@
 import type {
   MonitoringReview,
   Page,
+  TaskType,
   TaskStatus,
   WorkflowStatus,
 } from '../tasks/api/contracts'
@@ -147,6 +148,56 @@ export interface SourceReview {
   earlierTasks: Page<MonitoringTask>
 }
 
+export interface ObjectReviewName {
+  id: number
+  name: string | null
+  code: string | null
+  entityId: number
+  entityName: string | null
+}
+
+export interface ObjectInboxItem {
+  object: ObjectReviewName
+  sourceCount: number
+  taskCount: number
+  fieldCount: number
+  lastCheckedAt: string | null
+  status: 'pending' | 'in_progress'
+  severity: AttentionSource['severity']
+}
+
+export interface ObjectFinding {
+  businessField: BusinessField
+  businessObjectFieldId: number
+  selectorUuid: string
+  selectorVersionUuid: string | null
+  status: keyof typeof fieldStatuses
+  checkId: string
+  checkedAt: string | null
+  snapshotId: number | null
+  observationId: number | null
+  evaluationId: number | null
+}
+
+export interface FindingCapture {
+  checkId: string
+  checkedAt: string | null
+  snapshotId: number | null
+  fields: ObjectFinding[]
+}
+
+export interface ObjectReviewTask extends MonitoringTask {
+  type: TaskType
+  source: Pick<Source, 'id' | 'url' | 'name'>
+  allowedStatuses: TaskStatus[]
+  fields: ObjectFinding[]
+}
+
+export interface ObjectReview {
+  object: ObjectReviewName
+  tasks: Page<ObjectReviewTask>
+}
+
 type FieldInspection = Pick<
   MonitoringReview,
   'selector' | 'evaluation' | 'extractionRunId'
@@ -155,6 +206,33 @@ const read = <T>(path: string, signal?: AbortSignal) =>
   requestBackend<T>(path, { signal, cache: 'no-store' })
 
 export const monitoringApi = {
+  objects: (offset: number, limit: number, signal?: AbortSignal) =>
+    read<Page<ObjectInboxItem>>(
+      `/monitoring/objects?offset=${offset}&limit=${limit}`,
+      signal,
+    ),
+  object: (
+    id: string,
+    offset: number,
+    limit: number,
+    task: string | undefined,
+    signal?: AbortSignal,
+  ) => {
+    const query = new URLSearchParams({
+      offset: String(offset),
+      limit: String(limit),
+    })
+    if (task) query.set('taskId', task)
+    return read<ObjectReview>(
+      `/monitoring/objects/${id}/review?${query}`,
+      signal,
+    )
+  },
+  findings: (id: number, offset: number, limit: number, signal?: AbortSignal) =>
+    read<Page<FindingCapture>>(
+      `/monitoring/object-reviews/${id}/history?offset=${offset}&limit=${limit}`,
+      signal,
+    ),
   attention: (
     params: {
       search: string

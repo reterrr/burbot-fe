@@ -206,12 +206,14 @@ function ExecutionDiagnostics({
 
 export function ReviewInspection({
   review,
+  sourceCheckId,
   snapshotBack = { label: 'Evidence review' },
 }: {
   review: Pick<
     MonitoringReview,
     'selector' | 'evaluation' | 'source' | 'snapshot' | 'extractionRunId'
   >
+  sourceCheckId?: string
   snapshotBack?: SnapshotBack
 }) {
   const [selectorOpen, setSelectorOpen] = useState(false)
@@ -235,7 +237,9 @@ export function ReviewInspection({
           <Space wrap size={[16, 8]}>
             {source && (
               <>
-                <Link to={`/monitoring/sources/${source.id}`}>
+                <Link
+                  to={`/monitoring/sources/${source.id}${sourceCheckId ? `?check=${sourceCheckId}` : ''}`}
+                >
                   Open source review
                 </Link>
                 <Link to={`/tasks/history?source=${source.id}`}>
