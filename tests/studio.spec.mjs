@@ -286,6 +286,12 @@ test('review renders evidence and handles missing records and rejected tokens', 
   await page.reload()
   await expect(page.getByText('Missing evidence')).toBeVisible()
   await expect(page.getByText('No evidence recorded')).toBeVisible()
+  await expect(
+    page.getByText('Selector version unavailable for this capture'),
+  ).toBeVisible()
+  await expect(
+    page.getByText('Diagnostics unavailable for this capture'),
+  ).toBeVisible()
   response = 'SOURCE_ONLY'
   await page.reload()
   await expect(
@@ -299,6 +305,207 @@ test('review renders evidence and handles missing records and rejected tokens', 
   await expect(
     page.getByText('FastAPI rejected the local operator token'),
   ).toBeVisible()
+})
+
+test('review inspects the captured selector, match counts, and snapshot without writing', async ({
+  page,
+  context,
+}) => {
+  const uuid = (id) => `00000000-0000-4000-8000-${String(id).padStart(12, '0')}`
+  const sourceUrl = 'https://example.org/projects'
+  const pageUrl = sourceUrl + '#captured'
+  const firstPart = {
+    uuid: uuid(4),
+    order: 0,
+    extraction: { type: 'text' },
+    locators: [
+      { uuid: uuid(5), order: 0, kind: 'css_path', selector: '#deadline' },
+      {
+        uuid: uuid(6),
+        order: 1,
+        kind: 'xpath',
+        expression: '//p[@class="deadline"]',
+      },
+      {
+        uuid: uuid(7),
+        order: 2,
+        kind: 'text_quote',
+        quote: { exact: 'Applications close' },
+      },
+    ],
+  }
+  const secondPart = {
+    uuid: uuid(9),
+    order: 0,
+    extraction: { type: 'attribute', name: 'title' },
+    locators: [
+      {
+        uuid: uuid(10),
+        order: 0,
+        kind: 'element_id',
+        elementId: 'applications',
+      },
+    ],
+  }
+  const reviewMethods = []
+  await page.route('**/backend/tasks/42', (route) =>
+    route.fulfill({ json: detail() }),
+  )
+  await page.route('**/backend/monitoring/reviews/42', (route) => {
+    reviewMethods.push(route.request().method())
+    return route.fulfill({
+      json: {
+        taskId: 42,
+        taskStatus: 'pending',
+        canonicalValueId: 6,
+        canonicalValue: '01.12.2026',
+        previousEvidence: 'Previously recorded',
+        currentEvidence: null,
+        evidenceStatus: 'AMBIGUOUS',
+        evidenceChanged: null,
+        requiresReview: true,
+        evaluationId: 18,
+        extractionRunId: 24,
+        source: { id: 7, url: sourceUrl },
+        snapshot: {
+          id: 16,
+          source_id: 7,
+          page_url: pageUrl,
+          fetched_at: date,
+          mime_type: 'text/html',
+          representation: 'rendered_dom',
+          representation_version: 'firefox-dom-1',
+        },
+        selector: {
+          identity: {
+            uuid: uuid(1),
+            target: { objectId: 'project', field: 'deadline' },
+            createdAt: date,
+          },
+          versionId: 12,
+          version: {
+            uuid: uuid(2),
+            selectorUuid: uuid(1),
+            versionNo: 3,
+            status: 'superseded',
+            createdAt: date,
+            recipes: [
+              { uuid: uuid(3), order: 0, parts: [firstPart] },
+              { uuid: uuid(8), order: 1, parts: [secondPart] },
+            ],
+          },
+        },
+        evaluation: {
+          uuid: uuid(11),
+          pageUrl,
+          evaluatedAt: date,
+          sourceSnapshotId: 16,
+          extractionRunId: 24,
+          provenance: 'browser_agent_reported',
+          result: {
+            status: 'ambiguous',
+            selectorVersionUuid: uuid(2),
+            recipeResults: [
+              {
+                recipeUuid: uuid(3),
+                status: 'ambiguous',
+                partResults: [
+                  {
+                    partUuid: firstPart.uuid,
+                    status: 'ambiguous',
+                    locatorResults: [
+                      {
+                        locatorUuid: uuid(5),
+                        status: 'not_found',
+                        matchCount: 0,
+                      },
+                      {
+                        locatorUuid: uuid(6),
+                        status: 'ambiguous',
+                        matchCount: 3,
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                recipeUuid: uuid(8),
+                status: 'success',
+                rawValue: '<b>Recorded literal</b>',
+                partResults: [],
+              },
+            ],
+          },
+        },
+      },
+    })
+  })
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/#/tasks/42/review')
+  await expect(page.getByText('No evidence recorded')).toBeVisible()
+  const selector = page.getByRole('region', { name: 'Selector', exact: true })
+  await expect(selector.getByText('Version 3', { exact: true })).toBeVisible()
+  await expect(selector.getByText('Superseded', { exact: true })).toBeVisible()
+  await selector.getByRole('button', { name: 'Copy selector UUID' }).click()
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    uuid(1),
+  )
+  const diagnostics = page.getByRole('region', {
+    name: 'Execution diagnostics',
+  })
+  await expect(diagnostics.getByText('Browser agent reported')).toBeVisible()
+  await diagnostics.getByRole('button', { name: /Recipe 1/ }).click()
+  await diagnostics.getByRole('button', { name: /Part 1/ }).click()
+  await expect(
+    diagnostics.getByText('0 matches · No element found'),
+  ).toBeVisible()
+  await expect(
+    diagnostics.getByText('3 matches · Multiple candidates'),
+  ).toBeVisible()
+  await expect(
+    diagnostics.getByText('Diagnostics unavailable', { exact: true }),
+  ).toBeVisible()
+  await diagnostics.getByRole('button', { name: /Recipe 2/ }).click()
+  await expect(
+    diagnostics.getByText('<b>Recorded literal</b>', { exact: true }),
+  ).toBeVisible()
+  await expect(diagnostics.locator('b')).toHaveCount(0)
+
+  await selector.getByRole('button', { name: 'Inspect selector' }).click()
+  const inspector = page.getByRole('dialog', {
+    name: 'SelectorTree · Version 3',
+  })
+  await expect(inspector.getByText(uuid(2))).toBeVisible()
+  await inspector.getByRole('button', { name: /Recipe 1/ }).click()
+  await inspector.getByRole('button', { name: /Part 1/ }).click()
+  await expect(
+    inspector.getByText('//p[@class="deadline"]', { exact: true }),
+  ).toBeVisible()
+  await inspector.getByRole('button', { name: 'Copy locator' }).first().click()
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    '#deadline',
+  )
+  await inspector.getByRole('button', { name: /Recipe 2/ }).click()
+  await inspector.getByRole('button', { name: /Part 1 Attribute/ }).click()
+  await expect(
+    inspector.getByText('Extraction spec', { exact: true }),
+  ).toBeVisible()
+  await inspector.getByRole('button', { name: 'Close' }).click()
+
+  await expect(
+    page.getByRole('link', { name: 'Open original website' }),
+  ).toHaveAttribute('href', sourceUrl)
+  await expect(
+    page.getByRole('link', { name: 'Source #7 workflow history' }),
+  ).toHaveAttribute('href', '#/tasks/history?source=7')
+  await page.getByRole('button', { name: 'View snapshot details' }).click()
+  const snapshot = page.getByRole('dialog', { name: 'Source snapshot #16' })
+  await expect(snapshot.getByText(pageUrl, { exact: true })).toBeVisible()
+  await expect(
+    snapshot.getByText('firefox-dom-1', { exact: true }),
+  ).toBeVisible()
+  await expect(snapshot.locator('iframe, script')).toHaveCount(0)
+  expect(reviewMethods).toEqual(['GET'])
 })
 
 test('Workflow History exposes superseded workflows and their historical tasks', async ({

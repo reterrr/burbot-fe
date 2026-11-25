@@ -1,0 +1,101 @@
+import { useQuery } from '@tanstack/react-query'
+import { Drawer, Space, Tag, Typography } from 'antd'
+import { Link } from 'react-router'
+import { EvidenceValues } from '../tasks/components/EvidenceValues'
+import { ReviewInspection } from '../tasks/components/ReviewInspection'
+import {
+  RequestFailure,
+  StatusTag,
+  TaskLoading,
+} from '../tasks/components/TaskPresentation'
+import type { SourceReview, TrackedField } from './api'
+import { fieldStatuses, monitoringApi, monitoringQueryKey } from './api'
+import { FieldTag } from './StatusTags'
+
+export default function FieldInspector({
+  field,
+  review,
+  onClose,
+}: {
+  field: TrackedField
+  review: SourceReview
+  onClose: () => void
+}) {
+  const checkId = review.selectedCheck?.id
+  const recorded = Boolean(checkId && field.status)
+  const inspection = useQuery({
+    queryKey: [
+      ...monitoringQueryKey,
+      'field',
+      review.id,
+      checkId,
+      field.selectorUuid,
+    ],
+    queryFn: () => monitoringApi.field(review.id, checkId!, field.selectorUuid),
+    enabled: recorded,
+  })
+  return (
+    <Drawer
+      title={field.businessField.name ?? 'Tracked field'}
+      width="min(100vw, 850px)"
+      open
+      onClose={onClose}
+      className="task-review-inspector"
+    >
+      <div className="task-stack">
+        <Space wrap>
+          {field.businessObject?.name && (
+            <Typography.Text>
+              Business object {field.businessObject.name}
+            </Typography.Text>
+          )}
+          <FieldTag status={field.status} />
+          {field.task && (
+            <>
+              <Link to={`/tasks/${field.task.id}`}>
+                Open task #{field.task.id}
+              </Link>
+              <StatusTag status={field.task.status} />
+              {field.task.workflowStatus === 'superseded' && (
+                <Tag>Superseded workflow</Tag>
+              )}
+              {field.task.originCheckId !== checkId && (
+                <Tag>Task from a different check</Tag>
+              )}
+            </>
+          )}
+        </Space>
+        <EvidenceValues
+          review={{
+            ...field,
+            evidenceStatus: field.status
+              ? fieldStatuses[field.status].evidence
+              : null,
+            evidenceChanged: field.status === 'FIELD_CHANGED',
+          }}
+        />
+        {recorded &&
+          (inspection.isPending ? (
+            <TaskLoading />
+          ) : (
+            inspection.isError && (
+              <RequestFailure
+                message="Could not load selector diagnostics"
+                error={inspection.error}
+                retry={() => void inspection.refetch()}
+              />
+            )
+          ))}
+        {(!recorded || !inspection.isPending) && (
+          <ReviewInspection
+            review={{
+              ...inspection.data,
+              source: review.source,
+              snapshot: review.snapshot,
+            }}
+          />
+        )}
+      </div>
+    </Drawer>
+  )
+}

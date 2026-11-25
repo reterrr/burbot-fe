@@ -1,3 +1,10 @@
+import type {
+  ReviewEvaluation,
+  ReviewSelector,
+  ReviewSnapshot,
+  ReviewSource,
+} from './review-contracts'
+
 export const taskTypes = [
   'discover_source',
   'review_source_change',
@@ -133,6 +140,11 @@ export interface MonitoringReview {
   previousEvidence: string | string[] | null
   currentEvidence: string | string[] | null
   evaluationId: number | null
+  selector?: ReviewSelector | null
+  evaluation?: ReviewEvaluation | null
+  source?: ReviewSource | null
+  snapshot?: ReviewSnapshot | null
+  extractionRunId?: number | null
   baselineObservationId: number | null
   comparison: 'accepted_baseline' | 'previous_observation' | null
   evidenceStatus: EvidenceStatus | null

@@ -1,6 +1,5 @@
 import { useOne } from '@refinedev/core'
-import { Alert, Card, Descriptions, Tag, Typography } from 'antd'
-import { ArrowRight } from 'lucide-react'
+import { Alert, Card, Descriptions, Tag } from 'antd'
 import { useLocation, useParams } from 'react-router'
 import { localReviewEnabled } from '../../../app/studio'
 import type {
@@ -11,9 +10,10 @@ import type {
 import { positiveId } from '../api/task-client'
 import type { TaskApiError } from '../api/task-client'
 import { taskResources } from '../api/task-provider'
+import { EvidenceValues } from '../components/EvidenceValues'
+import { ReviewInspection } from '../components/ReviewInspection'
 import { TaskActions } from '../components/TaskActions'
 import {
-  JsonValue,
   RequestFailure,
   StatusTag,
   TaskHeader,
@@ -33,26 +33,6 @@ const evidenceLabels: Record<EvidenceStatus, { title: string; color: string }> =
     CONFLICT: { title: 'Conflicting evidence', color: 'red' },
     EXTRACTION_FAILED: { title: 'Extraction failure', color: 'red' },
   }
-
-function EvidenceText({
-  value,
-}: {
-  value: MonitoringReview['currentEvidence']
-}) {
-  if (value == null || (Array.isArray(value) && value.length === 0))
-    return (
-      <Typography.Text type="secondary">No evidence recorded</Typography.Text>
-    )
-  if (Array.isArray(value))
-    return (
-      <ol className="task-evidence-values">
-        {value.map((item, index) => (
-          <li key={index}>{item}</li>
-        ))}
-      </ol>
-    )
-  return <div className="task-evidence-text">{value || <i>Empty text</i>}</div>
-}
 
 function EvidenceComparison({
   review,
@@ -77,7 +57,10 @@ function EvidenceComparison({
     )?.reference_id
 
   return (
-    <div className="task-stack" data-testid="evidence-comparison">
+    <div
+      className="task-stack task-evidence-comparison"
+      data-testid="evidence-comparison"
+    >
       <Card
         title="Evidence context"
         size="small"
@@ -139,56 +122,8 @@ function EvidenceComparison({
           ]}
         />
       </Card>
-      {review.evidenceStatus === 'EXTRACTION_FAILED' && (
-        <Alert
-          type="error"
-          showIcon
-          message="Extraction failed"
-          description="See the evaluation and extraction run references for this task."
-        />
-      )}
-      <Card
-        title="Canonical value"
-        size="small"
-        extra={
-          review.canonicalValueId && (
-            <span className="task-mono">#{review.canonicalValueId}</span>
-          )
-        }
-      >
-        {review.canonicalValueId != null || review.canonicalValue != null ? (
-          <JsonValue value={review.canonicalValue} />
-        ) : (
-          <Typography.Text type="secondary">No canonical value</Typography.Text>
-        )}
-      </Card>
-      <div
-        className={`task-evidence-grid${review.evidenceChanged ? ' is-changed' : ''}`}
-      >
-        <Card
-          title="Previous evidence"
-          size="small"
-          extra={
-            review.previousObservationId && (
-              <span className="task-mono">#{review.previousObservationId}</span>
-            )
-          }
-        >
-          <EvidenceText value={review.previousEvidence} />
-        </Card>
-        <ArrowRight size={17} aria-hidden className="task-evidence-arrow" />
-        <Card
-          title="Current evidence"
-          size="small"
-          extra={
-            review.observationId && (
-              <span className="task-mono">#{review.observationId}</span>
-            )
-          }
-        >
-          <EvidenceText value={review.currentEvidence} />
-        </Card>
-      </div>
+      <EvidenceValues review={review} />
+      <ReviewInspection review={review} />
     </div>
   )
 }

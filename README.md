@@ -115,6 +115,26 @@ The backend endpoints are `GET /tasks/inbox`, `GET /tasks/inbox/count`,
 `source_id`, and exact `task_id`. The Source DTO exposes a URL and no display
 name, so Inbox rows show Source IDs without additional requests.
 
+## Monitoring workspace
+
+Open **Monitoring → Attention** from the Studio activity bar.
+
+| Route | What it shows |
+| --- | --- |
+| `#/monitoring/attention` | Server-paginated sources that need attention, with source and field outcomes, open tasks, search, filters, and priority sorting |
+| `#/monitoring/sources` | All monitored sources, including healthy sources |
+| `#/monitoring/sources/:sourceId` | Latest check, reviewable history, canonical and captured values, field inspector, and open tasks from earlier checks |
+
+Choose a field to load its captured SelectorTree and evaluation. Historical
+checks are addressable with `?check=<job UUID>`. The snapshot viewer shows
+acquisition metadata. Initial evidence compares stored text or lists of text
+with the canonical value and explains first-observation review. Completing a
+task updates its status through the Task API. Canonical values and accepted
+baselines have their own workflows.
+
+The backend must include the workspace endpoints and Alembic revision
+`m103_monitoring_source_history`.
+
 ### Review authorization
 
 The unauthenticated Task API is available through Vite's loopback development
@@ -123,8 +143,9 @@ read routes and same-origin status updates. The production Nginx service serves
 Business Studio and rejects `/backend/*` requests until a user authentication
 contract is available for the Task module.
 
-In local development, Vite forwards `GET /backend/monitoring/reviews/{id}` to
-`GET /monitoring/reviews/{id}` at `BURBOT_API_TARGET`. Vite reads
+In local development, Vite forwards the allowlisted GET requests beneath
+`/backend/monitoring` to `/monitoring` at `BURBOT_API_TARGET`. This covers task
+reviews, Attention, Source Review, check history, and captured field inspection. Vite reads
 `MONITORING_ADMIN_TOKEN` from its server environment and sets the upstream
 Bearer header. The browser receives only the Review enabled flag. With an
 empty setting, the review page shows how to configure the token. Completing a
@@ -164,8 +185,7 @@ using the backend's existing environment file or an exported
 docker compose --env-file ../burbot/.env -f docker-compose.dev.yml up
 ```
 
-Open `http://localhost:5173/#/tasks/121/review` with the ID of an existing
-evidence review task. The development container uses host networking so Vite
+Open `http://localhost:5173/#/monitoring/attention`. The development container uses host networking so Vite
 can listen on `127.0.0.1:5173` and reach FastAPI over loopback. On Docker
 Desktop, enable host networking. Set `BURBOT_API_TARGET` if FastAPI uses a
 different address. Run the Compose command again after changing the token.
@@ -197,7 +217,8 @@ preservation, completions, Unicode diagnostic columns, object ID mappings,
 optimistic update payloads, Task API mapping, Review proxy authorization, and
 production bundle isolation.
 Browser tests exercise real Studio routes with mocked HTTP, including Monaco
-drafts, pagination, status updates, workflow history, and evidence.
+drafts, pagination, status updates, workflow history, source attention, and
+historical field inspection.
 
 Against a running local Studio and Burbot database, run the read-only smoke
 test. An optional `BURBOT_SMOKE_TASK_ID` identifies an existing task to exercise
