@@ -5,6 +5,12 @@ import { build, createServer, resolveConfig } from 'vite'
 
 const operatorToken = 'server-only-review-fixture-token'
 const review = '/backend/monitoring/reviews/7'
+const reviewResponse = {
+  selector: { version: { versionNo: 3, status: 'superseded' } },
+  evaluation: {
+    result: { status: 'ambiguous', diagnostic: '<b>Stored text</b>' },
+  },
+}
 
 function setEnv(t, name, value) {
   const original = process.env[name]
@@ -26,12 +32,12 @@ async function startStudioProxy(t, token, mode = 'development') {
       cookie,
       authorization,
     })
+    const isReview = request.url.startsWith('/monitoring/reviews/')
     const status =
-      request.url.startsWith('/monitoring/reviews/') &&
-      authorization !== `Bearer ${operatorToken}`
-        ? 401
-        : 200
-    response.writeHead(status, { 'Content-Type': 'application/json' }).end('{}')
+      isReview && authorization !== `Bearer ${operatorToken}` ? 401 : 200
+    response
+      .writeHead(status, { 'Content-Type': 'application/json' })
+      .end(JSON.stringify(isReview && status === 200 ? reviewResponse : {}))
   })
   await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve))
   t.after(() => new Promise((resolve) => upstream.close(resolve)))
@@ -104,6 +110,8 @@ test('Vite forwards scoped local reviews with its operator token', async (t) => 
   const response = await read(review, { headers: browserHeaders })
   assert.equal(response.status, 200)
   assert.equal(response.headers.get('cache-control'), 'no-store')
+  assert.equal(response.headers.get('authorization'), null)
+  assert.deepEqual(await response.json(), reviewResponse)
   assert.equal(
     (await read(review, { headers: { origin: 'https://example.org' } })).status,
     403,

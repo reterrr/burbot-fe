@@ -207,6 +207,47 @@
   border-top-color: var(--green);
 }
 
+.task-review-heading {
+  margin: 0;
+  font: inherit;
+}
+.task-inspector-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.task-locator {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-deep);
+}
+.task-locator-preview > .task-locator {
+  margin-top: 5px;
+}
+.task-locator-preview .task-locator-code {
+  max-height: 72px;
+  overflow: auto;
+}
+.task-locator-code[data-kind='css_path'] .task-json {
+  color: #a9ded0;
+}
+.task-locator-code[data-kind='xpath'] .task-json {
+  color: #d3c6fa;
+}
+.task-locator-code .task-json > span {
+  color: #edb997;
+}
+.task-review-inspector .ant-descriptions-item-content,
+.task-evidence-comparison .ant-descriptions-item-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 940px) {
   .task-detail-grid {
     grid-template-columns: minmax(0, 1fr);
