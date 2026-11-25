@@ -6,6 +6,7 @@ import type {
 } from '../tasks/api/contracts'
 import type { ReviewSnapshot } from '../tasks/api/review-contracts'
 import { requestBackend } from '../tasks/api/task-client'
+import type { BusinessField, BusinessValueContext } from './display-contracts'
 
 export const monitoringQueryKey = ['monitoring-workspace'] as const
 
@@ -119,17 +120,14 @@ export interface MonitoringTask {
   requiresReview: boolean
 }
 
-export interface TrackedField {
+export interface TrackedField extends BusinessValueContext {
   selectorUuid: string
   selectorVersionId: number | null
   selectorVersionUuid: string | null
   configured: boolean
-  businessField: { id: number; name: string | null }
-  businessObjectFieldId: number | null
+  businessField: BusinessField
   businessObject: { id: number; name: string | null } | null
   status: keyof typeof fieldStatuses | null
-  canonicalValueId: number | null
-  canonicalValue: unknown
   previousEvidence: MonitoringReview['previousEvidence']
   currentEvidence: MonitoringReview['currentEvidence']
   previousObservationId: number | null

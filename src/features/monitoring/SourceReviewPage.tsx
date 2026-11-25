@@ -19,6 +19,7 @@ import { positiveId } from '../tasks/api/task-client'
 import { websiteUrl } from '../../lib/website-url'
 import { SnapshotDrawer } from '../tasks/components/ReviewInspection'
 import {
+  RecordId,
   RequestFailure,
   StatusTag,
   TaskHeader,
@@ -28,8 +29,9 @@ import {
 import { label } from '../tasks/presentation'
 import type { Check, SourceReview, TrackedField } from './api'
 import { monitoringApi, monitoringQueryKey } from './api'
+import { CanonicalValue } from './CanonicalValue'
 import CheckHistory from './CheckHistory'
-import { sourceTitle } from './presentation'
+import { businessFieldTitle, sourceTitle } from './presentation'
 import { CheckTag, FieldTag } from './StatusTags'
 
 const FieldInspector = lazy(() => import('./FieldInspector'))
@@ -69,8 +71,17 @@ function TrackedFields({
             className="monitoring-field-link"
             onClick={() => inspect(field.selectorUuid)}
           >
-            {field.businessField.name ?? 'Field name unavailable'}
+            {businessFieldTitle(field.businessField)}
           </Button>
+          {field.businessField.name && (
+            <div className="monitoring-context">
+              <RecordId
+                id={field.businessField.id}
+                prefix="Field"
+                copy={false}
+              />
+            </div>
+          )}
           {field.businessObject && (
             <div className="monitoring-context">
               {field.businessObject.name ??
@@ -81,11 +92,13 @@ function TrackedFields({
       ),
     },
     {
-      title: 'Canonical',
+      title: review.fields.some(
+        (field) => field.canonicalValueScope === 'current',
+      )
+        ? 'Current canonical'
+        : 'Canonical',
       width: '23%',
-      render: (_, field) => (
-        <ShortValue value={field.canonicalValue} empty="No canonical value" />
-      ),
+      render: (_, field) => <CanonicalValue context={field} compact />,
     },
     {
       title: 'Observed',
@@ -199,7 +212,7 @@ export default function SourceReviewPage() {
         back={back}
         subtitle={
           <>
-            <span>Source #{source.id}</span>
+            <RecordId id={source.id} prefix="Source" />
             <Tag>{label(source.state)}</Tag>
           </>
         }

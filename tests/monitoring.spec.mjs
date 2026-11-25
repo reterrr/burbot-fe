@@ -361,10 +361,12 @@ test('Initial evidence explains matching and differing canonical text', async ({
 }) => {
   const fields = [
     tracked('Matching deadline', 8, 'FIELD_NEW', {
+      canonicalDisplay: { kind: 'string', rawValue: '1 December' },
       currentEvidence: '1 December',
       previousEvidence: null,
     }),
     tracked('Different deadline', 9, 'FIELD_NEW', {
+      canonicalDisplay: { kind: 'string', rawValue: '1 December' },
       currentEvidence: 'December '.repeat(180),
       previousEvidence: null,
     }),
@@ -400,6 +402,127 @@ test('Initial evidence explains matching and differing canonical text', async ({
     ).toBeVisible()
     await drawer.getByRole('button', { name: 'Close' }).click()
   }
+})
+
+test.describe('Typed canonical values', () => {
+  test.use({ locale: 'pl-PL', timezoneId: 'Europe/Warsaw' })
+
+  test('tracked fields and historical capture inspector use the same display', async ({
+    page,
+  }) => {
+    const projectName = 'Regional Programme – development services 2024–2029'
+    const project = {
+      kind: 'reference',
+      rawValue: 291,
+      label: projectName,
+      target: { type: 'business_object', id: 291, entityId: 68 },
+      resolved: true,
+      labelIsCurrent: true,
+    }
+    const missing = {
+      kind: 'reference',
+      rawValue: 999,
+      label: 'BusinessObject #999',
+      target: { type: 'business_object', id: 999 },
+      resolved: false,
+    }
+    const sourceUrl = 'https://example.org/programme'
+    const cases = [
+      ['Projekt', project, projectName],
+      ['Missing project', missing, 'BusinessObject #999'],
+      [
+        'Programme website',
+        {
+          kind: 'source',
+          rawValue: 291,
+          target: { type: 'source', id: 291 },
+          label: sourceUrl,
+          labelIsCurrent: true,
+          resolved: true,
+        },
+        sourceUrl,
+      ],
+      ['Number of places', { kind: 'integer', rawValue: 291 }, '291'],
+      ['Funded', { kind: 'boolean', rawValue: false }, 'No'],
+      ['Deadline', { kind: 'date', rawValue: '2026-11-25' }, '25.11.2026'],
+      [
+        'Checked at',
+        { kind: 'datetime', rawValue: '2026-11-25T15:05:00Z' },
+        '16:05',
+      ],
+      ['Exact budget', { kind: 'decimal', rawValue: '12.3401' }, '12,3401'],
+      [
+        'Conditions',
+        {
+          kind: 'list',
+          rawValue: [true, false],
+          itemKind: 'boolean',
+          items: [
+            { kind: 'boolean', rawValue: true },
+            { kind: 'boolean', rawValue: false },
+          ],
+        },
+        'Yes',
+      ],
+      [
+        'Unknown metadata',
+        { kind: 'unknown', rawValue: { currency: 'PLN' } },
+        '{"currency":"PLN"}',
+      ],
+      ['Explicit null', { kind: 'string', rawValue: null }, 'Null'],
+      ['Title', { kind: 'string', rawValue: 'Plain title' }, 'Plain title'],
+    ]
+    const fields = cases.map(([name, display], index) =>
+      tracked(name, index + 1, 'FIELD_NEW', {
+        canonicalValue: display.rawValue,
+        canonicalDisplay: display,
+        canonicalValueScope: 'current',
+        ...(name === 'Projekt' && { currentEvidence: 'Regional Programme' }),
+      }),
+    )
+    await page.route('**/backend/monitoring/sources/7/review?*', (route) =>
+      route.fulfill({ json: review(fields, { selectedCheck: previous }) }),
+    )
+    await page.route('**/backend/monitoring/sources/7/review/*/*', (route) =>
+      route.fulfill({ json: { selector: null, evaluation: null } }),
+    )
+    await page.goto(`/#/monitoring/sources/7?check=${previous.id}`)
+    await expect(page.getByText('Historical check from')).toBeVisible()
+    await expect(
+      page.getByRole('columnheader', { name: 'Current canonical' }),
+    ).toBeVisible()
+    for (const [name, , expected] of cases) {
+      const row = page.getByRole('row').filter({
+        has: page.getByRole('button', { name, exact: true }),
+      })
+      await expect(row.getByRole('cell').nth(1)).toContainText(expected)
+    }
+    await page.getByRole('button', { name: 'Projekt', exact: true }).click()
+    const inspector = page.getByRole('dialog', { name: 'Projekt' })
+    await expect(
+      inspector.getByText(projectName, { exact: true }),
+    ).toBeVisible()
+    await expect(
+      inspector.getByText('Current name', { exact: false }),
+    ).toBeVisible()
+    await expect(
+      inspector.getByText('Regional Programme', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      inspector.getByText(
+        'Reference target resolved. Evidence requires semantic validation.',
+      ),
+    ).toBeVisible()
+    await inspector.getByRole('button', { name: 'Close' }).click()
+    await page
+      .getByRole('button', { name: 'Missing project', exact: true })
+      .click()
+    await expect(
+      page
+        .getByRole('dialog', { name: 'Missing project' })
+        .getByText('Referenced business object could not be resolved.'),
+    ).toBeVisible()
+  })
 })
 
 test('Failed checks stay distinct from the latest completed snapshot', async ({

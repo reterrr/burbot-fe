@@ -1,12 +1,15 @@
 import { Alert, Card, Typography } from 'antd'
 import { ArrowRight } from 'lucide-react'
+import { CanonicalValue } from '../../monitoring/CanonicalValue'
 import type { MonitoringReview } from '../api/contracts'
-import { JsonValue } from './TaskPresentation'
+import { RecordId } from './TaskPresentation'
 
 type Values = Pick<
   MonitoringReview,
   | 'canonicalValue'
   | 'canonicalValueId'
+  | 'canonicalValueScope'
+  | 'canonicalDisplay'
   | 'previousEvidence'
   | 'previousObservationId'
   | 'currentEvidence'
@@ -35,61 +38,62 @@ function EvidenceText({
   return <div className="task-evidence-text">{value || <i>Empty text</i>}</div>
 }
 
-function compareInitialEvidence(
-  canonical: unknown,
-  evidence: Values['currentEvidence'],
-) {
+function compareCanonicalEvidence({
+  canonicalValue: canonical,
+  canonicalDisplay: display,
+  currentEvidence: evidence,
+}: Values) {
   if (canonical == null)
     return 'No canonical value is available for comparison.'
+  if (display?.kind === 'reference' || display?.itemKind === 'reference') {
+    const targets =
+      display.kind === 'reference' ? [display] : (display.items ?? [])
+    if (targets.some((item) => !item.resolved))
+      return 'Referenced business object could not be resolved.'
+    if (targets.length > 0)
+      return evidence == null
+        ? 'Reference target resolved.'
+        : 'Reference target resolved. Evidence requires semantic validation.'
+    return 'Extracted text cannot be directly compared with this field type.'
+  }
+  if (evidence == null) return 'No extracted text is available for comparison.'
   const comparable =
-    (typeof canonical === 'string' && typeof evidence === 'string') ||
-    (Array.isArray(canonical) &&
-      canonical.every((value) => typeof value === 'string') &&
+    ((display?.kind === 'string' || display?.kind === 'text') &&
+      typeof canonical === 'string' &&
+      typeof evidence === 'string') ||
+    (display?.kind === 'list' &&
+      (display.itemKind === 'string' || display.itemKind === 'text') &&
+      Array.isArray(canonical) &&
+      canonical.every((item) => typeof item === 'string') &&
       Array.isArray(evidence))
   if (!comparable)
-    return 'Canonical comparison is unavailable for these value types.'
+    return 'Extracted text cannot be directly compared with this field type.'
   return JSON.stringify(canonical) === JSON.stringify(evidence)
     ? 'Recorded evidence matches the canonical value.'
     : 'Recorded evidence differs from the canonical value.'
 }
 
 export function EvidenceValues({ review }: { review: Values }) {
+  const initial = review.evidenceStatus === 'INITIAL_EVIDENCE'
+  const reference =
+    review.canonicalDisplay?.kind === 'reference' ||
+    review.canonicalDisplay?.itemKind === 'reference'
   return (
     <>
-      {review.evidenceStatus === 'INITIAL_EVIDENCE' && (
-        <Alert
-          type="info"
-          showIcon
-          message="First observation — no previous baseline"
-          description={
-            <>
-              <div>
-                {compareInitialEvidence(
-                  review.canonicalValue,
-                  review.currentEvidence,
-                )}
-              </div>
-              <div>
-                Review the source and selector to confirm the first observation.
-              </div>
-            </>
-          }
-        />
-      )}
       <Card
-        title="Canonical value"
+        title={
+          review.canonicalValueScope === 'current'
+            ? 'Current canonical value'
+            : 'Canonical value'
+        }
         size="small"
         extra={
-          review.canonicalValueId && (
-            <span className="task-mono">#{review.canonicalValueId}</span>
+          review.canonicalValueId != null && (
+            <RecordId id={review.canonicalValueId} prefix="Value record" />
           )
         }
       >
-        {review.canonicalValueId != null || review.canonicalValue != null ? (
-          <JsonValue value={review.canonicalValue} />
-        ) : (
-          <Typography.Text type="secondary">No canonical value</Typography.Text>
-        )}
+        <CanonicalValue context={review} />
       </Card>
       <div
         className={`task-evidence-grid${review.evidenceChanged ? ' is-changed' : ''}`}
@@ -118,6 +122,18 @@ export function EvidenceValues({ review }: { review: Values }) {
           <EvidenceText value={review.currentEvidence} />
         </Card>
       </div>
+      {(initial || reference) && (
+        <Alert
+          type="info"
+          showIcon
+          message={
+            initial
+              ? 'First observation — no previous baseline'
+              : 'Canonical comparison'
+          }
+          description={compareCanonicalEvidence(review)}
+        />
+      )}
     </>
   )
 }
