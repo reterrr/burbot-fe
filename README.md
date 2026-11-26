@@ -148,6 +148,13 @@ first-observation review. Completing a
 task updates its status through the Task API. Canonical values and accepted
 baselines have their own workflows.
 
+Use **Open in Firefox** on a snapshot or beside its link in the review. Studio
+shows eligible agents for that Source, sends one command, and shows success
+after Firefox acknowledges opening the extension viewer. The Field Inspector
+includes the capture's recorded selector version when available. The local
+backend and extension setup is in the snapshot bridge guide.
+[Snapshot bridge](https://github.com/reterrr/burbot/blob/main/docs/snapshot-bridge.md)
+
 The backend must include the workspace endpoints and Alembic revision
 `m103_monitoring_source_history`.
 
@@ -169,6 +176,10 @@ Bearer header. The browser receives only the Review enabled flag. With an
 empty setting, the review page shows how to configure the token. Completing a
 task records its workflow status. Canonical values use the Business Layer's
 existing workflow.
+
+The snapshot bridge also allows the Source agent list, command status and a
+same-origin POST to create an open command. Firefox connects directly to the
+backend with its issued agent token.
 
 ## Development
 

@@ -257,6 +257,15 @@ export function ReviewInspection({
                 sourceId={snapshot.source_id}
                 snapshotId={snapshot.id}
                 back={snapshotBack}
+                selectorContext={
+                  selector && review.extractionRunId != null
+                    ? {
+                        extractionRunId: review.extractionRunId,
+                        selectorUuid: selector.identity.uuid,
+                        selectorVersionUuid: selector.version.uuid,
+                      }
+                    : undefined
+                }
                 small
               />
             )}

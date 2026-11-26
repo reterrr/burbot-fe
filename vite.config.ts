@@ -8,8 +8,10 @@ const taskReads =
   /^\/backend\/tasks\/(?:inbox(?:\/count)?|[1-9]\d*|sources\/[1-9]\d*\/workflows|workflows\/[1-9]\d*(?:\/tasks)?)$/
 const taskStatus = /^\/backend\/tasks\/[1-9]\d*\/status$/
 const uuid = '[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}'
+const openSnapshot = '/backend/monitoring/snapshots/open-commands'
+const snapshotCommandRead = new RegExp(`^${openSnapshot}/${uuid}$`)
 const reviewRead = new RegExp(
-  String.raw`^/backend/monitoring/(?:reviews/[1-9]\d*|objects(?:/[1-9]\d*/review)?|object-reviews/[1-9]\d*/history|attention/sources|sources/[1-9]\d*/(?:history|review(?:/${uuid}/${uuid})?|snapshots/[1-9]\d*/(?:preview|content|download)))$`,
+  String.raw`^/backend/monitoring/(?:reviews/[1-9]\d*|objects(?:/[1-9]\d*/review)?|object-reviews/[1-9]\d*/history|attention/sources|sources/[1-9]\d*/(?:history|review(?:/${uuid}/${uuid})?|snapshot-agents|snapshots/[1-9]\d*/(?:preview|content|download)))$`,
 )
 
 function localStudioApi(reviewEnabled: boolean): Plugin {
@@ -28,7 +30,9 @@ function localStudioApi(reviewEnabled: boolean): Plugin {
           !loopbackAddresses.has(request.socket.remoteAddress ?? '') ||
           (origin && !sameOrigin) ||
           request.headers['sec-fetch-site'] === 'cross-site' ||
-          (request.method === 'PATCH' && !sameOrigin)
+          ((request.method === 'PATCH' ||
+            (request.method === 'POST' && path === openSnapshot)) &&
+            !sameOrigin)
         ) {
           response.writeHead(403).end()
           return
@@ -37,7 +41,11 @@ function localStudioApi(reviewEnabled: boolean): Plugin {
         if (
           (request.method === 'GET' &&
             (taskReads.test(path) ||
-              (reviewEnabled && reviewRead.test(path)))) ||
+              (reviewEnabled &&
+                (reviewRead.test(path) || snapshotCommandRead.test(path))))) ||
+          (reviewEnabled &&
+            request.method === 'POST' &&
+            path === openSnapshot) ||
           (request.method === 'PATCH' && taskStatus.test(path))
         )
           return next()

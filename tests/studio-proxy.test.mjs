@@ -6,6 +6,7 @@ import { build, createServer, resolveConfig } from 'vite'
 const operatorToken = 'server-only-review-fixture-token'
 const review = '/backend/monitoring/reviews/7'
 const snapshot = '/backend/monitoring/sources/57/snapshots/16'
+const commands = '/backend/monitoring/snapshots/open-commands'
 const reviewResponse = {
   selector: { version: { versionNo: 3, status: 'superseded' } },
   evaluation: {
@@ -22,6 +23,51 @@ function setEnv(t, name, value) {
     else process.env[name] = original
   })
 }
+
+test('Vite passes only same-origin operator commands and keeps agent credentials off Studio', async (t) => {
+  const { origin, read, received } = await startStudioProxy(t, operatorToken)
+  const id = '00000000-0000-4000-8000-000000000001'
+  assert.equal((await read(commands, { method: 'POST' })).status, 403)
+  assert.equal(
+    (
+      await read(commands, {
+        method: 'POST',
+        headers: { origin: 'https://example.invalid' },
+      })
+    ).status,
+    403,
+  )
+  assert.equal(
+    (
+      await read(commands, {
+        method: 'POST',
+        headers: {
+          origin,
+          cookie: 'fixture=yes',
+          authorization: 'Bearer browser-token',
+        },
+      })
+    ).status,
+    200,
+  )
+  assert.equal((await read(`${commands}/${id}`)).status, 200)
+  assert.equal(
+    (await read('/backend/monitoring/sources/57/snapshot-agents')).status,
+    200,
+  )
+  const agent = '/backend/monitoring/agents/snapshot-commands'
+  assert.equal((await read(`${agent}/${id}/artifact`)).status, 404)
+  assert.equal(
+    (await read(`${agent}/claim`, { method: 'POST', headers: { origin } }))
+      .status,
+    404,
+  )
+  assert.deepEqual(
+    received.map((request) => request.authorization),
+    Array(3).fill(`Bearer ${operatorToken}`),
+  )
+  assert.ok(received.every((request) => request.cookie === undefined))
+})
 
 async function startStudioProxy(t, token, mode = 'development') {
   const received = []
