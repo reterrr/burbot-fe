@@ -134,7 +134,6 @@ function FindingHistory({
               <SnapshotLink
                 sourceId={task.source.id}
                 snapshotId={capture.snapshotId}
-                back={{ label: 'Object review' }}
                 small
               />
             )}
@@ -226,7 +225,6 @@ function RecordedField({
   objectId: number
   close: () => void
 }) {
-  const { state } = useLocation()
   const query = useQuery({
     queryKey: [
       ...monitoringQueryKey,
@@ -244,17 +242,7 @@ function RecordedField({
       field.businessObject?.id === objectId,
   )
   if (query.data && field) {
-    return (
-      <FieldInspector
-        field={field}
-        review={query.data}
-        onClose={close}
-        snapshotBack={{
-          label: 'Field inspector',
-          state: { ...state, objectField: target },
-        }}
-      />
-    )
+    return <FieldInspector field={field} review={query.data} onClose={close} />
   }
   return (
     <Drawer title="Field inspector" open onClose={close}>
@@ -275,9 +263,7 @@ export default function ObjectReviewPage() {
   const id = positiveId(useParams().objectId)
   const [params, setParams] = useSearchParams()
   const { state } = useLocation()
-  const [selectedField, setSelectedField] = useState<CaptureField | null>(
-    state?.objectField ?? null,
-  )
+  const [selectedField, setSelectedField] = useState<CaptureField | null>(null)
   const focusedTask = positiveId(params.get('task'))
   const page = focusedTask ? 1 : readPage(params.get('page'), pageSize)
   const query = useQuery({

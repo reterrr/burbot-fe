@@ -1,14 +1,21 @@
 import { Alert, Layout } from 'antd'
-import { lazy, Suspense } from 'react'
-import { NavLink, Navigate, Route, Routes } from 'react-router'
+import { NavLink, Navigate, Route, Routes, useParams } from 'react-router'
 import { localReviewEnabled } from '../../app/studio'
-import { TaskLoading } from '../tasks/components/TaskPresentation'
+import { positiveId } from '../tasks/api/task-client'
 import AttentionPage from './AttentionPage'
 import SourceReviewPage from './SourceReviewPage'
 import '../tasks/tasks.css'
 import './monitoring.css'
 
-const SnapshotViewer = lazy(() => import('./SnapshotViewer'))
+function LegacySnapshotRedirect() {
+  const sourceId = positiveId(useParams().sourceId)
+  return (
+    <Navigate
+      to={sourceId ? `/monitoring/sources/${sourceId}` : '/monitoring/sources'}
+      replace
+    />
+  )
+}
 
 export default function MonitoringRoutes() {
   return (
@@ -30,13 +37,7 @@ export default function MonitoringRoutes() {
             <Route path="sources/:sourceId" element={<SourceReviewPage />} />
             <Route
               path="sources/:sourceId/snapshots/:snapshotId"
-              element={
-                <Suspense
-                  fallback={<TaskLoading message="Loading snapshot…" />}
-                >
-                  <SnapshotViewer />
-                </Suspense>
-              }
+              element={<LegacySnapshotRedirect />}
             />
             <Route
               path="*"

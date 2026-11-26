@@ -11,7 +11,8 @@ import {
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { websiteUrl } from '../../../lib/website-url'
-import { SnapshotLink, type SnapshotBack } from '../../monitoring/SnapshotLink'
+import { SnapshotLink } from '../../monitoring/SnapshotLink'
+import { snapshotSelectorContext } from '../../monitoring/snapshot-api'
 import type { MonitoringReview } from '../api/contracts'
 import type { ReviewSelector } from '../api/review-contracts'
 import { label } from '../presentation'
@@ -207,14 +208,12 @@ function ExecutionDiagnostics({
 export function ReviewInspection({
   review,
   sourceCheckId,
-  snapshotBack = { label: 'Evidence review' },
 }: {
   review: Pick<
     MonitoringReview,
     'selector' | 'evaluation' | 'source' | 'snapshot' | 'extractionRunId'
   >
   sourceCheckId?: string
-  snapshotBack?: SnapshotBack
 }) {
   const [selectorOpen, setSelectorOpen] = useState(false)
   const { selector, source, snapshot } = review
@@ -256,16 +255,7 @@ export function ReviewInspection({
               <SnapshotLink
                 sourceId={snapshot.source_id}
                 snapshotId={snapshot.id}
-                back={snapshotBack}
-                selectorContext={
-                  selector && review.extractionRunId != null
-                    ? {
-                        extractionRunId: review.extractionRunId,
-                        selectorUuid: selector.identity.uuid,
-                        selectorVersionUuid: selector.version.uuid,
-                      }
-                    : undefined
-                }
+                selectorContext={snapshotSelectorContext(review)}
                 small
               />
             )}

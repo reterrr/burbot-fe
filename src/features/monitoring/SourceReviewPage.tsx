@@ -14,7 +14,7 @@ import {
 import type { TableColumnsType } from 'antd'
 import { ExternalLink, History, RefreshCw } from 'lucide-react'
 import { lazy, Suspense, useState } from 'react'
-import { Link, useLocation, useParams, useSearchParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { positiveId } from '../tasks/api/task-client'
 import { websiteUrl } from '../../lib/website-url'
 import {
@@ -163,14 +163,9 @@ export default function SourceReviewPage() {
   const id = positiveId(sourceId)
   const [params, setParams] = useSearchParams()
   const checkId = params.get('check')
-  const { state } = useLocation()
-  const historyPage =
-    typeof state?.historyPage === 'number' ? state.historyPage : undefined
   const [earlierPage, setEarlierPage] = useState(1)
-  const [historyOpen, setHistoryOpen] = useState(historyPage != null)
-  const [inspected, setInspected] = useState<string | null>(
-    state?.inspectField ?? null,
-  )
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [inspected, setInspected] = useState<string | null>(null)
   const query = useQuery({
     queryKey: [...monitoringQueryKey, 'source', id, checkId, earlierPage],
     queryFn: ({ signal }) =>
@@ -237,7 +232,6 @@ export default function SourceReviewPage() {
               <SnapshotLink
                 sourceId={snapshot.source_id}
                 snapshotId={snapshot.id}
-                back={{ label: 'Source review' }}
               />
             )}
             <Button
@@ -383,7 +377,6 @@ export default function SourceReviewPage() {
       {historyOpen && (
         <CheckHistory
           sourceId={id}
-          initialPage={historyPage}
           onSelect={selectCheck}
           onClose={() => setHistoryOpen(false)}
         />

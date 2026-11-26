@@ -50,7 +50,10 @@ test('Vite passes only same-origin operator commands and keeps agent credentials
     ).status,
     200,
   )
-  assert.equal((await read(`${commands}/${id}`)).status, 200)
+  const delivery = await read(`${commands}/${id}`)
+  assert.equal(delivery.status, 200)
+  assert.equal(delivery.headers.get('authorization'), null)
+  assert.equal(delivery.headers.get('cache-control'), 'no-store')
   assert.equal(
     (await read('/backend/monitoring/sources/57/snapshot-agents')).status,
     200,
@@ -233,10 +236,6 @@ test('Vite authorizes only the scoped Monitoring workspace reads', async (t) => 
     '/monitoring/sources/10/review',
     `/monitoring/sources/10/review/${id}/${id}`,
     '/monitoring/sources/10/history?summary=true',
-    '/monitoring/sources/57/snapshots/16/preview',
-    '/monitoring/sources/57/snapshots/16/content?metadataOnly=true',
-    '/monitoring/sources/57/snapshots/16/content',
-    '/monitoring/sources/57/snapshots/16/download',
   ]
   for (const route of routes) {
     const response = await read('/backend' + route)
@@ -250,6 +249,10 @@ test('Vite authorizes only the scoped Monitoring workspace reads', async (t) => 
     '/monitoring/objects/291',
     '/monitoring/object-reviews/155/status',
     '/monitoring/sources/10/review/invalid',
+    '/monitoring/sources/57/snapshots/16/preview',
+    '/monitoring/sources/57/snapshots/16/content?metadataOnly=true',
+    '/monitoring/sources/57/snapshots/16/content',
+    '/monitoring/sources/57/snapshots/16/download',
     '/monitoring/sources/57/snapshots/0/content',
     '/monitoring/sources/57/snapshots/16/delete',
     '/monitoring/sources/57/snapshots/16/content/extra',
@@ -303,7 +306,10 @@ test('Review propagates upstream authorization failures', async (t) => {
 test('Task reads continue while reviews are disabled without an operator token', async (t) => {
   const { read, received, vite } = await startStudioProxy(t, undefined)
   assert.equal((await read(review)).status, 404)
-  assert.equal((await read(`${snapshot}/preview`)).status, 404)
+  assert.equal(
+    (await read('/backend/monitoring/sources/57/snapshot-agents')).status,
+    404,
+  )
   assert.equal((await read('/backend/tasks/7')).status, 200)
   assert.deepEqual(
     received.map(({ url }) => url),
@@ -316,13 +322,21 @@ test('Task reads continue while reviews are disabled without an operator token',
 })
 
 test('Production mode leaves the development review proxy disabled', async (t) => {
-  const { read, received, vite } = await startStudioProxy(
+  const { read, received, vite, origin } = await startStudioProxy(
     t,
     operatorToken,
     'production',
   )
   assert.equal((await read(review)).status, 404)
-  assert.equal((await read(`${snapshot}/download`)).status, 404)
+  assert.equal(
+    (
+      await read(commands, {
+        method: 'POST',
+        headers: { origin },
+      })
+    ).status,
+    404,
+  )
   assert.deepEqual(received, [])
   assert.equal(
     vite.config.define['globalThis.__BURBOT_LOCAL_REVIEW_ENABLED__'],

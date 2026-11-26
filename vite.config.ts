@@ -11,7 +11,7 @@ const uuid = '[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}'
 const openSnapshot = '/backend/monitoring/snapshots/open-commands'
 const snapshotCommandRead = new RegExp(`^${openSnapshot}/${uuid}$`)
 const reviewRead = new RegExp(
-  String.raw`^/backend/monitoring/(?:reviews/[1-9]\d*|objects(?:/[1-9]\d*/review)?|object-reviews/[1-9]\d*/history|attention/sources|sources/[1-9]\d*/(?:history|review(?:/${uuid}/${uuid})?|snapshot-agents|snapshots/[1-9]\d*/(?:preview|content|download)))$`,
+  String.raw`^/backend/monitoring/(?:reviews/[1-9]\d*|objects(?:/[1-9]\d*/review)?|object-reviews/[1-9]\d*/history|attention/sources|sources/[1-9]\d*/(?:history|review(?:/${uuid}/${uuid})?|snapshot-agents))$`,
 )
 
 function localStudioApi(reviewEnabled: boolean): Plugin {

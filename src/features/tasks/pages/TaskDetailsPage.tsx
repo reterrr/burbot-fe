@@ -2,6 +2,7 @@ import { Card, Descriptions, Tag, Typography } from 'antd'
 import { Link, useLocation, useParams } from 'react-router'
 import { localReviewEnabled } from '../../../app/studio'
 import { SnapshotLink } from '../../monitoring/SnapshotLink'
+import { snapshotSelectorContext } from '../../monitoring/snapshot-api'
 import { positiveId } from '../api/task-client'
 import { TaskActions } from '../components/TaskActions'
 import {
@@ -25,9 +26,10 @@ export default function TaskDetailsPage() {
   const { state } = useLocation()
   const back = useTaskBackLink()
   const { query, result: task } = useTask(id)
-  const { result: review } = useMonitoringReview(
+  const hasMonitoringJob = Boolean(task?.metadata_json?.monitoringJobId)
+  const { query: reviewQuery, result: review } = useMonitoringReview(
     id,
-    Boolean(task?.metadata_json?.monitoringJobId),
+    hasMonitoringJob,
   )
   if (query.isLoading) return <TaskLoading />
   if (!task || query.isError)
@@ -121,17 +123,22 @@ export default function TaskDetailsPage() {
                     ]
                   : []),
                 ...(localReviewEnabled &&
+                !(hasMonitoringJob && reviewQuery.isPending) &&
                 snapshotSourceId != null &&
                 snapshotId != null
                   ? [
                       {
                         key: 'snapshot',
-                        label: `Snapshot #${snapshotId}`,
+                        label: 'Snapshot',
                         children: (
                           <SnapshotLink
                             sourceId={snapshotSourceId}
                             snapshotId={snapshotId}
-                            back={{ label: 'Task details' }}
+                            selectorContext={
+                              review?.snapshot
+                                ? snapshotSelectorContext(review)
+                                : undefined
+                            }
                             small
                           />
                         ),

@@ -1,27 +1,25 @@
-import type {
-  ReviewSnapshot,
-  ReviewSource,
-} from '../tasks/api/review-contracts'
+import type { MonitoringReview } from '../tasks/api/contracts'
 import { TaskApiError } from '../tasks/api/task-client'
-
-export interface SnapshotDetails {
-  source: ReviewSource
-  snapshot: ReviewSnapshot
-  artifact: {
-    mimeType: string
-    sizeBytes: number | null
-    sha256: string | null
-  } | null
-}
-
-interface SnapshotContent extends SnapshotDetails {
-  html: string | null
-}
 
 export interface SnapshotSelectorContext {
   extractionRunId: number
   selectorUuid: string
   selectorVersionUuid: string
+}
+
+export function snapshotSelectorContext({
+  selector,
+  extractionRunId,
+}: Pick<
+  MonitoringReview,
+  'selector' | 'extractionRunId'
+>): SnapshotSelectorContext | undefined {
+  if (!selector || extractionRunId == null) return undefined
+  return {
+    extractionRunId,
+    selectorUuid: selector.identity.uuid,
+    selectorVersionUuid: selector.version.uuid,
+  }
 }
 
 export interface SnapshotOpenRequest {
@@ -76,65 +74,62 @@ export function snapshotCommandError(code: string | null) {
   )
 }
 
-export function snapshotPath(
-  sourceId: string | number,
-  snapshotId: string | number,
-) {
-  return `/monitoring/sources/${sourceId}/snapshots/${snapshotId}`
-}
-
-async function requestSnapshot(
-  path: string,
-  mediaType: string,
-  signal?: AbortSignal,
-  options: RequestInit = {},
-) {
-  const response = await fetch(`/backend${path}`, {
-    ...options,
-    cache: 'no-store',
-    credentials: 'same-origin',
-    redirect: 'error',
-    signal,
-  })
-  if (!response.ok) {
-    const body = await response.json().catch(() => null)
-    const code: unknown = body?.detail?.code
-    const message =
-      typeof code === 'string' && Object.hasOwn(errorMessages, code)
-        ? errorMessages[code]
-        : response.status === 401 || response.status === 403
-          ? 'The monitoring operator credential was rejected.'
-          : `The snapshot request returned status ${response.status}.`
-    throw new TaskApiError(response.status, message)
-  }
-  if (response.headers.get('content-type')?.split(';', 1)[0] !== mediaType)
-    throw new TaskApiError(
-      502,
-      'The snapshot API returned an unexpected content type.',
-    )
-  return response
-}
-
 const commandsPath = '/monitoring/snapshots/open-commands'
+const requestTimeout = 12_000
 
 async function commandJson<T>(
   path: string,
-  signal?: AbortSignal,
-  options?: RequestInit,
+  options: RequestInit = {},
 ): Promise<T> {
-  return (
-    await requestSnapshot(path, 'application/json', signal, options)
-  ).json() as Promise<T>
+  const timeout = AbortSignal.timeout(requestTimeout)
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, timeout])
+    : timeout
+  try {
+    const response = await fetch(`/backend${path}`, {
+      ...options,
+      cache: 'no-store',
+      credentials: 'same-origin',
+      redirect: 'error',
+      signal,
+    })
+    if (!response.ok) {
+      const body = await response.json().catch(() => {
+        signal.throwIfAborted()
+        return null
+      })
+      const code: unknown = body?.detail?.code
+      const message =
+        typeof code === 'string' && Object.hasOwn(errorMessages, code)
+          ? errorMessages[code]
+          : response.status === 401 || response.status === 403
+            ? 'The monitoring operator credential was rejected.'
+            : `The snapshot request returned status ${response.status}.`
+      throw new TaskApiError(response.status, message)
+    }
+    if (
+      response.headers.get('content-type')?.split(';', 1)[0] !==
+      'application/json'
+    )
+      throw new TaskApiError(
+        502,
+        'The snapshot API returned an unexpected content type.',
+      )
+    return (await response.json()) as T
+  } catch (error) {
+    if (timeout.aborted && !options.signal?.aborted)
+      throw new Error('The snapshot request timed out. Try again.')
+    throw error
+  }
 }
 
 export const snapshotBridge = {
-  agents: (sourceId: number, signal?: AbortSignal) =>
+  agents: (sourceId: number) =>
     commandJson<SnapshotAgent[]>(
       `/monitoring/sources/${sourceId}/snapshot-agents`,
-      signal,
     ),
   open: (request: SnapshotOpenRequest) =>
-    commandJson<SnapshotCommand>(commandsPath, undefined, {
+    commandJson<SnapshotCommand>(commandsPath, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'open_snapshot', ...request }),
@@ -142,62 +137,6 @@ export const snapshotBridge = {
   status: (id: string, signal?: AbortSignal) =>
     commandJson<SnapshotCommand>(
       `${commandsPath}/${encodeURIComponent(id)}`,
-      signal,
+      { signal },
     ),
-}
-
-async function readContent(
-  sourceId: string,
-  snapshotId: string,
-  metadataOnly: boolean,
-  signal?: AbortSignal,
-) {
-  const path = `${snapshotPath(sourceId, snapshotId)}/content${metadataOnly ? '?metadataOnly=true' : ''}`
-  const response = await requestSnapshot(path, 'application/json', signal)
-  const data: SnapshotContent = await response.json()
-  if (
-    data?.snapshot?.id !== Number(snapshotId) ||
-    data.snapshot.source_id !== Number(sourceId) ||
-    data.source?.id !== Number(sourceId)
-  )
-    throw new TaskApiError(
-      502,
-      'The snapshot API returned an unexpected capture.',
-    )
-  return data
-}
-
-export const snapshotApi = {
-  details: (
-    sourceId: string,
-    snapshotId: string,
-    signal?: AbortSignal,
-  ): Promise<SnapshotDetails> =>
-    readContent(sourceId, snapshotId, true, signal),
-  async preview(sourceId: string, snapshotId: string, signal?: AbortSignal) {
-    const response = await requestSnapshot(
-      `${snapshotPath(sourceId, snapshotId)}/preview`,
-      'text/html',
-      signal,
-    )
-    return response.text()
-  },
-  async html(sourceId: string, snapshotId: string, signal?: AbortSignal) {
-    const data = await readContent(sourceId, snapshotId, false, signal)
-    if (typeof data.html !== 'string')
-      throw new TaskApiError(502, 'The snapshot API returned no HTML source.')
-    return data.html
-  },
-  async download(sourceId: string, snapshotId: string) {
-    const response = await requestSnapshot(
-      `${snapshotPath(sourceId, snapshotId)}/download`,
-      'application/octet-stream',
-    )
-    const url = URL.createObjectURL(await response.blob())
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `snapshot-${snapshotId}.html`
-    link.click()
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-  },
 }

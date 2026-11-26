@@ -616,8 +616,8 @@ test('review inspects the captured selector, match counts, and snapshot without 
     page.getByRole('link', { name: 'Source #7 workflow history' }),
   ).toHaveAttribute('href', '#/tasks/history?source=7')
   await expect(
-    page.getByRole('link', { name: 'View snapshot' }),
-  ).toHaveAttribute('href', '#/monitoring/sources/7/snapshots/16')
+    page.getByRole('button', { name: 'Open snapshot #16' }),
+  ).toBeVisible()
   expect(reviewMethods).toEqual(['GET'])
 })
 

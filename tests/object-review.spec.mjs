@@ -330,31 +330,38 @@ test('object finding history uses the captured selector and snapshot and complet
       })
     },
   )
+  const commands = []
+  const agentId = uuid(90)
+  const commandPath = '**/backend/monitoring/snapshots/open-commands'
   await page.route(
-    '**/backend/monitoring/sources/57/snapshots/15/content?*',
+    '**/backend/monitoring/sources/57/snapshot-agents',
     (route) =>
-      route.fulfill({
-        json: {
-          source,
-          snapshot,
-          artifact: { mimeType: 'text/html', sizeBytes: 19 },
-          html: null,
-        },
-      }),
+      route.fulfill({ json: [{ agentId, name: 'Firefox test agent' }] }),
   )
-  await page.route(
-    '**/backend/monitoring/sources/57/snapshots/15/preview',
-    (route) =>
-      route.fulfill({
-        contentType: 'text/html',
-        body: '<h1>Recorded page</h1>',
-      }),
+  await page.route(commandPath, (route) => {
+    const request = route.request().postDataJSON()
+    commands.push(request)
+    return route.fulfill({
+      json: { commandId: request.requestId, state: 'pending' },
+    })
+  })
+  await page.route(`${commandPath}/*`, (route) =>
+    route.fulfill({
+      json: { commandId: commands.at(-1).requestId, state: 'opened' },
+    }),
   )
 
   await page.goto('/#/tasks/155')
   await page.getByRole('link', { name: 'Open object review' }).click()
   await expect(page).toHaveURL(/#\/tasks\/objects\/291\?task=155$/)
   await page.getByText('Finding history', { exact: true }).click()
+  await page.getByRole('button', { name: 'Open snapshot #15' }).click()
+  await expect(page.getByText('Opened in Firefox')).toBeVisible()
+  expect(commands[0]).toMatchObject({
+    sourceId: 57,
+    snapshotId: 15,
+    targetAgentId: agentId,
+  })
   const oldRow = page.getByRole('row', {
     name: /Recruitment deadline.*Initial evidence/,
   })
@@ -385,16 +392,20 @@ test('object finding history uses the captured selector and snapshot and complet
   })
   await expect(selector).toBeVisible()
   await selector.getByRole('button', { name: 'Close' }).click()
-  await inspector.getByRole('link', { name: 'View snapshot' }).click()
-  await expect(
-    page.getByRole('heading', { name: 'Snapshot #15' }),
-  ).toBeVisible()
-  await expect(
-    page
-      .frameLocator('iframe[title="Snapshot preview"]')
-      .getByRole('heading', { name: 'Recorded page' }),
-  ).toBeVisible()
-  await page.getByRole('link', { name: 'Field inspector' }).click()
+  await inspector.getByRole('button', { name: 'Open snapshot #15' }).click()
+  await expect(inspector.getByText('Opened in Firefox')).toBeVisible()
+  await expect(page).toHaveURL(/#\/tasks\/objects\/291\?task=155$/)
+  expect(commands).toHaveLength(2)
+  expect(commands[1]).toMatchObject({
+    sourceId: 57,
+    snapshotId: 15,
+    targetAgentId: agentId,
+    selectorContext: {
+      extractionRunId: 35,
+      selectorUuid: historicField.selectorUuid,
+      selectorVersionUuid: historicField.selectorVersionUuid,
+    },
+  })
   await expect(
     inspector.getByText('Archived original deadline', { exact: true }),
   ).toBeVisible()
@@ -415,13 +426,18 @@ test('object finding history uses the captured selector and snapshot and complet
   await expect(
     page.getByRole('row', { name: /Recruitment deadline.*Value changed/ }),
   ).toBeVisible()
-  expect(writes).toEqual(
-    ['in_progress', 'completed'].map((status) => ({
+  expect(writes).toEqual([
+    ...commands.map((body) => ({
+      method: 'POST',
+      path: '/backend/monitoring/snapshots/open-commands',
+      body,
+    })),
+    ...['in_progress', 'completed'].map((status) => ({
       method: 'PATCH',
       path: '/backend/tasks/155/status',
       body: { status },
     })),
-  )
+  ])
 })
 
 test('unbound observations and source failures have direct filtered navigation', async ({

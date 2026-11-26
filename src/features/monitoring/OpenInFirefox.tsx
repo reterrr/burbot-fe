@@ -1,211 +1,159 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Alert, Button, Modal, Select, Space, Spin } from 'antd'
+import { Button, Modal, Select, Space, Typography } from 'antd'
 import { useState } from 'react'
+import { TaskApiError } from '../tasks/api/task-client'
+import { monitoringQueryKey } from './api'
 import {
   snapshotBridge,
   snapshotCommandError,
-  type SnapshotAgent,
-  type SnapshotOpenRequest,
+  type SnapshotCommand,
   type SnapshotSelectorContext,
 } from './snapshot-api'
-import { monitoringQueryKey } from './api'
+
+function awaitingFirefox(command: SnapshotCommand | undefined) {
+  return command?.state === 'pending' || command?.state === 'claimed'
+}
 
 export default function OpenInFirefox({
   sourceId,
   snapshotId,
   selectorContext,
   small = false,
-  primary = false,
-  disabled = false,
 }: {
   sourceId: number | string
-  snapshotId: number | string
+  snapshotId: number
   selectorContext?: SnapshotSelectorContext
   small?: boolean
-  primary?: boolean
-  disabled?: boolean
 }) {
-  const [visible, setVisible] = useState(false)
-  const [agents, setAgents] = useState<SnapshotAgent[]>()
+  const [choosing, setChoosing] = useState(false)
   const [selected, setSelected] = useState<string>()
-  const [request, setRequest] = useState<SnapshotOpenRequest>()
-  const open = useMutation({ mutationFn: snapshotBridge.open })
-  function send(agentId: string) {
-    const next = {
-      requestId: crypto.randomUUID(),
-      sourceId: Number(sourceId),
-      snapshotId: Number(snapshotId),
-      targetAgentId: agentId,
-      selectorContext,
-    }
-    setRequest(next)
-    open.mutate(next)
-  }
   const identify = useMutation({
     mutationFn: () => snapshotBridge.agents(Number(sourceId)),
-    onSuccess: (choices) => {
-      setAgents(choices)
-      if (choices.length === 1) send(choices[0].agentId)
-    },
+    networkMode: 'always',
+  })
+  const open = useMutation({
+    mutationFn: snapshotBridge.open,
+    networkMode: 'always',
   })
   const commandId = open.data?.commandId
   const status = useQuery({
     queryKey: [...monitoringQueryKey, 'snapshot-command', commandId],
-    enabled:
-      Boolean(commandId) &&
-      (open.data?.state === 'pending' || open.data?.state === 'claimed'),
+    enabled: Boolean(commandId) && awaitingFirefox(open.data),
     queryFn: ({ signal }) => snapshotBridge.status(commandId!, signal),
-    refetchInterval: (query) => {
-      const command = query.state.data ?? open.data
-      return command?.state === 'pending' || command?.state === 'claimed'
+    refetchInterval: ({ state }) =>
+      state.status !== 'error' && awaitingFirefox(state.data ?? open.data)
         ? 1_500
-        : false
-    },
+        : false,
     refetchIntervalInBackground: true,
+    refetchOnWindowFocus: false,
+    networkMode: 'always',
     retry: false,
   })
   const command = status.data ?? open.data
-  const waiting = command?.state === 'pending' || command?.state === 'claimed'
+  const waiting = awaitingFirefox(command)
+  const statusFailed = waiting && status.isError
+  const connecting = identify.isPending || open.isPending
+  const busy = connecting || (waiting && (!statusFailed || status.isFetching))
+
+  function send(agentId: string) {
+    setChoosing(false)
+    open.mutate({
+      requestId: crypto.randomUUID(),
+      sourceId: Number(sourceId),
+      snapshotId,
+      targetAgentId: agentId,
+      selectorContext,
+    })
+  }
 
   function start() {
-    setAgents(undefined)
+    if (statusFailed) {
+      void status.refetch()
+      return
+    }
+    if (
+      open.isError &&
+      open.variables &&
+      (!(open.error instanceof TaskApiError) || open.error.statusCode >= 500)
+    ) {
+      // A lost response may have queued the command. Reuse its idempotency key.
+      open.mutate(open.variables)
+      return
+    }
     setSelected(undefined)
-    setRequest(undefined)
     open.reset()
-    identify.mutate()
+    identify.mutate(undefined, {
+      onSuccess(agents) {
+        if (agents.length === 1) send(agents[0].agentId)
+        if (agents.length > 1) setChoosing(true)
+      },
+    })
+  }
+
+  let feedback: string | undefined
+  let tone: 'secondary' | 'success' | 'warning' | 'danger' = 'secondary'
+  if (connecting) {
+    feedback = 'Connecting to Firefox agent…'
+  } else if (identify.isError) {
+    feedback = `Could not find Firefox agents. ${identify.error.message}`
+    tone = 'danger'
+  } else if (identify.data?.length === 0) {
+    feedback = 'Firefox extension offline. Connect an eligible agent and try again.'
+    tone = 'warning'
+  } else if (open.isError) {
+    feedback = `Could not send the snapshot command. ${open.error.message}`
+    tone = 'danger'
+  } else if (statusFailed && !status.isFetching) {
+    feedback = `Could not check snapshot delivery. ${status.error?.message ?? ''}`
+    tone = 'warning'
+  } else if (waiting) {
+    feedback =
+      command?.state === 'claimed'
+        ? 'Firefox is opening the snapshot…'
+        : 'Waiting for Firefox to receive the command…'
+  } else if (command?.state === 'opened') {
+    feedback = 'Opened in Firefox'
+    tone = 'success'
+  } else if (command?.state === 'failed') {
+    feedback = snapshotCommandError(command.errorCode)
+    tone = 'danger'
+  } else if (command?.state === 'expired') {
+    feedback = 'The snapshot command expired. Try opening it again.'
+    tone = 'warning'
   }
 
   return (
     <>
-      <Button
-        type={primary ? 'primary' : 'default'}
-        size={small ? 'small' : undefined}
-        disabled={disabled}
-        onClick={() => {
-          setVisible(true)
-          if (
-            !command &&
-            !identify.isPending &&
-            !open.isPending &&
-            !agents &&
-            !identify.isError
-          )
-            start()
-        }}
-      >
-        Open in Firefox
-      </Button>
+      <Space direction="vertical" size={4}>
+        <Button size={small ? 'small' : undefined} loading={busy} onClick={start}>
+          {statusFailed ? 'Retry status' : `Open snapshot #${snapshotId}`}
+        </Button>
+        {feedback && (
+          <Typography.Text role="status" type={tone}>
+            {feedback}
+          </Typography.Text>
+        )}
+      </Space>
       <Modal
-        title={`Open Snapshot #${snapshotId} in Firefox`}
-        open={visible}
-        onCancel={() => setVisible(false)}
-        footer={null}
+        title={`Choose a Firefox agent for snapshot #${snapshotId}`}
+        open={choosing}
+        onCancel={() => setChoosing(false)}
+        okText="Send command"
+        okButtonProps={{ disabled: !selected }}
+        onOk={() => selected && send(selected)}
       >
-        <div className="task-stack" aria-live="polite">
-          {(identify.isPending || open.isPending) && (
-            <Space>
-              <Spin size="small" />
-              Connecting to Firefox agent…
-            </Space>
-          )}
-          {identify.isError && (
-            <Alert
-              type="error"
-              showIcon
-              message="Could not find Firefox agents"
-              description={identify.error.message}
-            />
-          )}
-          {!identify.isPending && agents?.length === 0 && (
-            <Alert
-              type="warning"
-              showIcon
-              message="Firefox extension offline"
-              description="No eligible Firefox agent is connected for this source."
-            />
-          )}
-          {agents && agents.length > 1 && !open.isPending && !request && (
-            <Space wrap>
-              <Select
-                aria-label="Firefox agent"
-                virtual={false}
-                placeholder="Choose a Firefox agent"
-                style={{ minWidth: 225 }}
-                value={selected}
-                onChange={setSelected}
-                options={agents.map((agent) => ({
-                  value: agent.agentId,
-                  label: agent.name,
-                }))}
-              />
-              <Button
-                type="primary"
-                disabled={!selected}
-                onClick={() => selected && send(selected)}
-              >
-                Send command
-              </Button>
-            </Space>
-          )}
-          {open.isError && (
-            <Alert
-              type="error"
-              showIcon
-              message="Could not send the snapshot command"
-              description={open.error.message}
-            />
-          )}
-          {waiting && (
-            <Space>
-              <Spin size="small" />
-              {command.state === 'claimed'
-                ? 'Firefox is opening the snapshot…'
-                : 'Waiting for Firefox to receive the command…'}
-            </Space>
-          )}
-          {waiting && status.isError && (
-            <Alert
-              type="warning"
-              showIcon
-              message="Could not check delivery status. Retrying…"
-            />
-          )}
-          {command?.state === 'opened' && (
-            <Alert type="success" showIcon message="Opened in Firefox" />
-          )}
-          {command?.state === 'failed' && (
-            <Alert
-              type="error"
-              showIcon
-              message="Firefox could not open the snapshot"
-              description={snapshotCommandError(command.errorCode)}
-            />
-          )}
-          {command?.state === 'expired' && (
-            <Alert
-              type="warning"
-              showIcon
-              message="The snapshot command expired"
-              description="Firefox did not confirm opening before the command expired."
-            />
-          )}
-          {open.isError && request && (
-            <Button onClick={() => open.mutate(request)}>Retry delivery</Button>
-          )}
-          {!identify.isPending &&
-            !open.isPending &&
-            !waiting &&
-            (identify.isError ||
-              open.isError ||
-              agents?.length === 0 ||
-              command) && (
-              <Button onClick={start}>
-                {command?.state === 'opened'
-                  ? 'Open another tab'
-                  : 'Find Firefox agents again'}
-              </Button>
-            )}
-        </div>
+        <Select
+          aria-label="Firefox agent"
+          virtual={false}
+          placeholder="Choose a Firefox agent"
+          style={{ width: '100%' }}
+          value={selected}
+          onChange={setSelected}
+          options={identify.data?.map((agent) => ({
+            value: agent.agentId,
+            label: agent.name,
+          }))}
+        />
       </Modal>
     </>
   )

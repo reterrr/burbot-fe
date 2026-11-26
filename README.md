@@ -136,27 +136,24 @@ Open **Monitoring → Attention** from the Studio activity bar.
 | `#/monitoring/sources` | All monitored sources, including healthy sources |
 | `#/tasks` | **Objects requiring attention** opens the shared object Inbox |
 | `#/monitoring/sources/:sourceId` | Latest check, reviewable history, canonical and captured values, field inspector, and open tasks from earlier checks |
-| `#/monitoring/sources/:sourceId/snapshots/:snapshotId` | Isolated Preview, searchable HTML Source, capture details, and original HTML download |
 
 Choose a field to load its captured SelectorTree and evaluation. Historical
-checks are addressable with `?check=<job UUID>`. **View snapshot** opens the
-capture associated with the selected check or task. **HTML Source** supports
-literal text, CSS class, and HTML ID searches in read-only Monaco. Use
-**Download original HTML** to save the exact artifact. Initial evidence compares
+checks are addressable with `?check=<job UUID>`. Initial evidence compares
 stored text or lists of text with the canonical value and explains
-first-observation review. Completing a
-task updates its status through the Task API. Canonical values and accepted
-baselines have their own workflows.
+first-observation review. Completing a task updates its status through the
+Task API. Canonical values and accepted baselines have their own workflows.
 
-Use **Open in Firefox** on a snapshot or beside its link in the review. Studio
-shows eligible agents for that Source, sends one command, and shows success
-after Firefox acknowledges opening the extension viewer. The Field Inspector
-includes the capture's recorded selector version when available. The local
-backend and extension setup is in the snapshot bridge guide.
-[Snapshot bridge](https://github.com/reterrr/burbot/blob/main/docs/snapshot-bridge.md)
+Choose **Open snapshot** for the capture associated with a check or task.
+Studio sends the command as soon as it finds one eligible Firefox agent and
+prompts you to choose when several are connected. The extension opens the
+archived HTML in a Firefox tab. Studio stays on the current review and shows
+**Opened in Firefox** after the extension acknowledges the command. Field and
+task reviews attach the recorded selector version when available. **Open
+original website** opens the live Source URL. Older snapshot links lead to
+Source Review. [Snapshot Bridge API](https://github.com/reterrr/burbot/blob/main/docs/snapshot-bridge.md#api-contracts-and-credentials)
 
-The backend must include the workspace endpoints and Alembic revision
-`m103_monitoring_source_history`.
+The backend must include the workspace and Snapshot Bridge endpoints through
+Alembic revision `m104_snapshot_open_commands`.
 
 ### Review authorization
 
@@ -169,8 +166,7 @@ contract is available for the Task module.
 In local development, Vite forwards the allowlisted GET requests beneath
 `/backend/monitoring` to `/monitoring` at `BURBOT_API_TARGET`. This covers task
 reviews, object Inbox, object review and finding history, Attention, Source
-Review, check history, captured field inspection, and
-the snapshot preview, content, and download routes. Vite reads
+Review, check history, and captured field inspection. Vite reads
 `MONITORING_ADMIN_TOKEN` from its server environment and sets the upstream
 Bearer header. The browser receives only the Review enabled flag. With an
 empty setting, the review page shows how to configure the token. Completing a
