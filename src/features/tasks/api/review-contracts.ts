@@ -11,6 +11,26 @@ type ExtractionSpec =
   | { type: 'text' }
   | { type: 'attribute'; name: string }
   | { type: 'selection'; quote: TextQuote }
+  | { type: 'text_between'; start: string; end: string }
+
+export type ExtractionErrorCode =
+  | 'selection_quote_mismatch'
+  | 'selection_quote_ambiguous'
+  | 'selection_context_mismatch'
+  | 'selection_context_ambiguous'
+  | 'text_boundary_missing'
+  | 'text_boundary_ambiguous'
+  | 'element_required'
+  | 'attribute_missing'
+  | 'empty_value'
+  | 'value_too_large'
+  | 'extraction_failed'
+
+interface DiagnosticCandidate {
+  rawText: string
+  source: 'matched_element_text'
+  verified: false
+}
 
 export type SelectorLocator = { uuid: string; order: number } & (
   | { kind: 'css_path'; selector: string }
@@ -70,6 +90,8 @@ export interface RecordedResult {
 export interface LocatorResult extends RecordedResult {
   locatorUuid: string
   matchCount: number
+  extractionError?: ExtractionErrorCode
+  candidate?: DiagnosticCandidate
 }
 
 export interface PartResult extends RecordedResult {

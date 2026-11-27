@@ -285,7 +285,7 @@ test('review renders evidence and handles missing records and rejected tokens', 
   response = 'MISSING'
   await page.reload()
   await expect(page.getByText('Missing evidence')).toBeVisible()
-  await expect(page.getByText('No evidence recorded')).toBeVisible()
+  await expect(page.getByText('No validated observation')).toBeVisible()
   await expect(
     page.getByText('Selector version unavailable for this capture'),
   ).toBeVisible()
@@ -434,7 +434,7 @@ test('review inspects the captured selector, match counts, and snapshot without 
   const firstPart = {
     uuid: uuid(4),
     order: 0,
-    extraction: { type: 'text' },
+    extraction: { type: 'selection', quote: { exact: 'Applications close' } },
     locators: [
       { uuid: uuid(5), order: 0, kind: 'css_path', selector: '#deadline' },
       {
@@ -449,6 +449,7 @@ test('review inspects the captured selector, match counts, and snapshot without 
         kind: 'text_quote',
         quote: { exact: 'Applications close' },
       },
+      { uuid: uuid(12), order: 3, kind: 'element_id', elementId: 'applications' },
     ],
   }
   const secondPart = {
@@ -533,13 +534,24 @@ test('review inspects the captured selector, match counts, and snapshot without 
                     locatorResults: [
                       {
                         locatorUuid: uuid(5),
-                        status: 'not_found',
-                        matchCount: 0,
+                        status: 'error',
+                        matchCount: 1,
+                        extractionError: 'selection_quote_mismatch',
+                        candidate: {
+                          rawText: '<b>Observed literal</b>',
+                          source: 'matched_element_text',
+                          verified: false,
+                        },
                       },
                       {
                         locatorUuid: uuid(6),
                         status: 'ambiguous',
                         matchCount: 3,
+                      },
+                      {
+                        locatorUuid: uuid(7),
+                        status: 'not_found',
+                        matchCount: 0,
                       },
                     ],
                   },
@@ -559,7 +571,16 @@ test('review inspects the captured selector, match counts, and snapshot without 
   })
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/#/tasks/42/review')
-  await expect(page.getByText('No evidence recorded')).toBeVisible()
+  const current = page.getByRole('region', { name: 'Current evidence' })
+  await expect(current.getByText('No validated observation')).toBeVisible()
+  await expect(current.getByText('Observed literal')).toHaveCount(0)
+  const candidates = page.getByRole('region', { name: 'Observed candidates' })
+  await expect(candidates.getByText('Unverified', { exact: true })).toBeVisible()
+  await expect(candidates.getByText('CSS path', { exact: true })).toBeVisible()
+  await expect(candidates.getByText('#deadline', { exact: true })).toBeVisible()
+  await expect(candidates.getByText('Snapshot #16', { exact: true })).toBeVisible()
+  await expect(candidates.getByText('<b>Observed literal</b>', { exact: true })).toBeVisible()
+  await expect(candidates.locator('b')).toHaveCount(0)
   const selector = page.getByRole('region', { name: 'Selector', exact: true })
   await expect(selector.getByText('Version 3', { exact: true })).toBeVisible()
   await expect(selector.getByText('Superseded', { exact: true })).toBeVisible()
@@ -573,6 +594,9 @@ test('review inspects the captured selector, match counts, and snapshot without 
   await expect(diagnostics.getByText('Browser agent reported')).toBeVisible()
   await diagnostics.getByRole('button', { name: /Recipe 1/ }).click()
   await diagnostics.getByRole('button', { name: /Part 1/ }).click()
+  await expect(diagnostics.getByText('Target located', { exact: true })).toBeVisible()
+  await expect(diagnostics.getByText('Extraction failed', { exact: true })).toBeVisible()
+  await expect(diagnostics.getByText('The selection quote no longer matches.')).toBeVisible()
   await expect(
     diagnostics.getByText('0 matches · No element found'),
   ).toBeVisible()
@@ -605,7 +629,7 @@ test('review inspects the captured selector, match counts, and snapshot without 
   await inspector.getByRole('button', { name: /Recipe 2/ }).click()
   await inspector.getByRole('button', { name: /Part 1 Attribute/ }).click()
   await expect(
-    inspector.getByText('Extraction spec', { exact: true }),
+    inspector.getByRole('cell', { name: /Extraction spec.*"attribute"/ }),
   ).toBeVisible()
   await inspector.getByRole('button', { name: 'Close' }).click()
 
