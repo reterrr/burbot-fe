@@ -211,7 +211,7 @@ export function ReviewInspection({
 }: {
   review: Pick<
     MonitoringReview,
-    'selector' | 'evaluation' | 'source' | 'snapshot' | 'extractionRunId'
+    'selector' | 'evaluation' | 'source' | 'snapshot' | 'extractionRunId' | 'checkId' | 'archive'
   >
   sourceCheckId?: string
 }) {
@@ -255,6 +255,8 @@ export function ReviewInspection({
               <SnapshotLink
                 sourceId={snapshot.source_id}
                 snapshotId={snapshot.id}
+                checkId={review.checkId ?? undefined}
+                archive={review.archive}
                 selectorContext={snapshotSelectorContext(review)}
                 small
               />

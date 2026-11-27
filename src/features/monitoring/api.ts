@@ -5,7 +5,7 @@ import type {
   TaskStatus,
   WorkflowStatus,
 } from '../tasks/api/contracts'
-import type { ReviewSnapshot } from '../tasks/api/review-contracts'
+import type { ReviewSnapshot, SnapshotArchive } from '../tasks/api/review-contracts'
 import { requestBackend } from '../tasks/api/task-client'
 import type { BusinessField, BusinessValueContext } from './display-contracts'
 
@@ -83,6 +83,7 @@ export interface Check {
   changeStatus: ChangeStatus | null
   snapshotId: number | null
   errorCode: string | null
+  archive?: SnapshotArchive | null
 }
 
 export interface Source {
