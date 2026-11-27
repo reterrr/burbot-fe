@@ -1,7 +1,10 @@
-import { Alert, Card, Typography } from 'antd'
+import { Alert, Card, Tag, Typography } from 'antd'
 import { ArrowRight } from 'lucide-react'
 import { CanonicalValue } from '../../monitoring/CanonicalValue'
 import type { MonitoringReview } from '../api/contracts'
+import type { LocatorResult } from '../api/review-contracts'
+import { extractionReasons, locatorLabels, locatorValue } from '../presentation'
+import { ExecutionStatus } from './SelectorRecipes'
 import { RecordId } from './TaskPresentation'
 
 type Values = Pick<
@@ -16,17 +19,19 @@ type Values = Pick<
   | 'observationId'
   | 'evidenceChanged'
   | 'evidenceStatus'
+  | 'selector'
+  | 'evaluation'
 >
 
 function EvidenceText({
   value,
+  empty,
 }: {
   value: MonitoringReview['currentEvidence']
+  empty: string
 }) {
   if (value == null || (Array.isArray(value) && value.length === 0))
-    return (
-      <Typography.Text type="secondary">No evidence recorded</Typography.Text>
-    )
+    return <Typography.Text type="secondary">{empty}</Typography.Text>
   if (Array.isArray(value))
     return (
       <ol className="task-evidence-values">
@@ -36,6 +41,71 @@ function EvidenceText({
       </ol>
     )
   return <div className="task-evidence-text">{value || <i>Empty text</i>}</div>
+}
+
+function ObservedCandidates({
+  evaluation,
+  selector,
+}: Pick<Values, 'evaluation' | 'selector'>) {
+  if (!evaluation) return null
+  const results = evaluation.result.recipeResults.flatMap((recipe) =>
+    recipe.partResults.flatMap((part) => part.locatorResults),
+  )
+  const candidates = results.filter(
+    (result): result is LocatorResult & {
+      candidate: NonNullable<LocatorResult['candidate']>
+    } =>
+      result.status === 'error' &&
+      result.matchCount === 1 &&
+      result.candidate?.source === 'matched_element_text' &&
+      result.candidate.verified === false,
+  )
+  if (candidates.length === 0) return null
+  const locators = new Map(
+    selector?.version.recipes.flatMap((recipe) =>
+      recipe.parts.flatMap((part) =>
+        part.locators.map((locator) => [locator.uuid, locator] as const),
+      ),
+    ),
+  )
+  return (
+    <Card
+      role="region"
+      aria-label="Observed candidates"
+      title={<h2 className="task-review-heading">Observed candidates</h2>}
+      size="small"
+      extra={<Tag color="gold">Unverified</Tag>}
+    >
+      <div className="task-stack">
+        <RecordId id={evaluation.sourceSnapshotId} prefix="Snapshot" />
+        {candidates.map((result) => {
+          const locator = locators.get(result.locatorUuid)
+          const expression = locator && locatorValue(locator)
+          return (
+            <div key={result.locatorUuid} className="task-locator">
+              <div className="task-inspector-row">
+                <Typography.Text strong>
+                  {locator ? locatorLabels[locator.kind] : 'Locator'}
+                </Typography.Text>
+                <Typography.Text code>
+                  {typeof expression === 'string' ? expression : result.locatorUuid}
+                </Typography.Text>
+              </div>
+              <Typography.Text type="secondary">
+                Target located · 1 match
+              </Typography.Text>
+              {result.extractionError && (
+                <Typography.Text>
+                  {extractionReasons[result.extractionError]}
+                </Typography.Text>
+              )}
+              <div className="task-evidence-text">{result.candidate.rawText}</div>
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
 }
 
 function compareCanonicalEvidence({
@@ -99,6 +169,8 @@ export function EvidenceValues({ review }: { review: Values }) {
         className={`task-evidence-grid${review.evidenceChanged ? ' is-changed' : ''}`}
       >
         <Card
+          role="region"
+          aria-label="Previous evidence"
           title="Previous evidence"
           size="small"
           extra={
@@ -107,21 +179,30 @@ export function EvidenceValues({ review }: { review: Values }) {
             )
           }
         >
-          <EvidenceText value={review.previousEvidence} />
+          <EvidenceText value={review.previousEvidence} empty="No previous observation" />
         </Card>
         <ArrowRight size={17} aria-hidden className="task-evidence-arrow" />
         <Card
+          role="region"
+          aria-label="Current evidence"
           title="Current evidence"
           size="small"
           extra={
-            review.observationId && (
+            review.observationId ? (
               <span className="task-mono">#{review.observationId}</span>
-            )
+            ) : review.evaluation ? (
+              review.evaluation.result.status === 'error' ? (
+                <Tag color="red">Extraction failed</Tag>
+              ) : (
+                <ExecutionStatus status={review.evaluation.result.status} />
+              )
+            ) : undefined
           }
         >
-          <EvidenceText value={review.currentEvidence} />
+          <EvidenceText value={review.currentEvidence} empty="No validated observation" />
         </Card>
       </div>
+      <ObservedCandidates evaluation={review.evaluation} selector={review.selector} />
       {(initial || reference) && (
         <Alert
           type="info"

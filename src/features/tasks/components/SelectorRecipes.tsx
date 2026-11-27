@@ -10,7 +10,7 @@ import type {
   SelectorPart,
   SelectorRecipe,
 } from '../api/review-contracts'
-import { label } from '../presentation'
+import { extractionReasons, label, locatorLabels, locatorValue } from '../presentation'
 import { JsonValue } from './TaskPresentation'
 
 const resultColors: Record<SelectorEvaluationStatus, string> = {
@@ -22,34 +22,7 @@ const resultColors: Record<SelectorEvaluationStatus, string> = {
   unsupported: 'default',
 }
 
-const locatorLabels: Record<SelectorLocator['kind'], string> = {
-  css_path: 'CSS path',
-  xpath: 'XPath',
-  element_id: 'Element ID',
-  text_quote: 'Text quote',
-  dom_path: 'DOM path',
-  dom_range: 'DOM range',
-  exact_pos: 'Exact position',
-  text_position: 'Text position',
-  text_fragment: 'Text fragment',
-}
-
 const locatorSyntax = /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[#[\]():@/=~>+|*])/g
-
-function locatorValue(locator: SelectorLocator) {
-  switch (locator.kind) {
-    case 'css_path':
-      return locator.selector
-    case 'xpath':
-      return locator.expression
-    case 'element_id':
-      return locator.elementId
-    case 'text_quote':
-      return locator.quote
-    default:
-      return locator.payload
-  }
-}
 
 function matchCountLabel({ matchCount: count, status }: LocatorResult) {
   if (count === 0)
@@ -112,7 +85,15 @@ export function LocatorDetails({
         <Typography.Text type="secondary">
           Order {locator.order}
         </Typography.Text>
-        {diagnostics && <ExecutionStatus status={result?.status} />}
+        {diagnostics &&
+          (result?.matchCount === 1 && result.status === 'error' ? (
+            <>
+              <Tag color="green">Target located</Tag>
+              <Tag color="red">Extraction failed</Tag>
+            </>
+          ) : (
+            <ExecutionStatus status={result?.status} />
+          ))}
         {result && (
           <Typography.Text type="secondary">
             {matchCountLabel(result)}
@@ -136,7 +117,13 @@ export function LocatorDetails({
           <JsonValue value={value} />
         )}
       </div>
-      <ResultDetails result={result} />
+      {result?.extractionError ? (
+        <Typography.Text className="task-evidence-text">
+          {extractionReasons[result.extractionError]}
+        </Typography.Text>
+      ) : (
+        <ResultDetails result={result} />
+      )}
     </div>
   )
 }

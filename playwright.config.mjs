@@ -14,6 +14,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev -- --port 17513 --strictPort',
     url: origin,
-    env: { MONITORING_ADMIN_TOKEN: 'playwright-review-fixture' },
+    env: {
+      MONITORING_ADMIN_TOKEN:
+        process.env.MONITORING_ADMIN_TOKEN || 'playwright-review-fixture',
+    },
   },
 })

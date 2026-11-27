@@ -84,6 +84,8 @@ export default function FieldInspector({
         <EvidenceValues
           review={{
             ...field,
+            selector: inspection.data?.selector,
+            evaluation: inspection.data?.evaluation,
             evidenceStatus: field.status
               ? fieldStatuses[field.status].evidence
               : null,
