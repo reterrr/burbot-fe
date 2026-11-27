@@ -134,6 +134,7 @@ function FindingHistory({
               <SnapshotLink
                 sourceId={task.source.id}
                 snapshotId={capture.snapshotId}
+                checkId={capture.checkId}
                 small
               />
             )}

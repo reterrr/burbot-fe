@@ -26,6 +26,7 @@ export interface SnapshotOpenRequest {
   requestId: string
   sourceId: number
   snapshotId: number
+  checkId?: string
   targetAgentId?: string
   selectorContext?: SnapshotSelectorContext
 }
@@ -45,6 +46,8 @@ export interface SnapshotCommand {
 const errorMessages: Record<string, string> = {
   SNAPSHOT_NOT_FOUND: 'This snapshot is unavailable for the selected source.',
   SNAPSHOT_ARTIFACT_NOT_FOUND: 'The stored HTML file is unavailable.',
+  SNAPSHOT_ARCHIVE_UNAVAILABLE: 'Firefox could not read the stored visual archive.',
+  SNAPSHOT_CHECK_MISMATCH: 'The selected monitoring check belongs to a different capture.',
   SNAPSHOT_TOO_LARGE: 'The HTML file exceeds the 5 MiB snapshot limit.',
   SNAPSHOT_INTEGRITY_MISMATCH: 'The stored HTML failed its integrity check.',
   SNAPSHOT_NOT_HTML: 'The stored file has a different content type.',

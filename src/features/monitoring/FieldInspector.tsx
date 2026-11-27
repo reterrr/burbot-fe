@@ -111,6 +111,8 @@ export default function FieldInspector({
               ...inspection.data,
               source: review.source,
               snapshot: review.snapshot,
+              checkId,
+              archive: review.selectedCheck?.archive,
             }}
           />
         )}

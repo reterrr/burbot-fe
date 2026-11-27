@@ -55,6 +55,8 @@ export default function CheckHistory({
                     key="snapshot"
                     sourceId={sourceId}
                     snapshotId={check.snapshotId}
+                    checkId={check.id}
+                    archive={check.archive}
                     small
                   />
                 ),

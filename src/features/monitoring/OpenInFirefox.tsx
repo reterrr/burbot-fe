@@ -17,11 +17,13 @@ function awaitingFirefox(command: SnapshotCommand | undefined) {
 export default function OpenInFirefox({
   sourceId,
   snapshotId,
+  checkId,
   selectorContext,
   small = false,
 }: {
   sourceId: number | string
   snapshotId: number
+  checkId?: string
   selectorContext?: SnapshotSelectorContext
   small?: boolean
 }) {
@@ -54,6 +56,7 @@ export default function OpenInFirefox({
   const statusFailed = waiting && status.isError
   const connecting = identify.isPending || open.isPending
   const busy = connecting || (waiting && (!statusFailed || status.isFetching))
+  const actionLabel = statusFailed ? 'Retry status' : `Open snapshot #${snapshotId}`
 
   function send(agentId: string) {
     setChoosing(false)
@@ -61,6 +64,7 @@ export default function OpenInFirefox({
       requestId: crypto.randomUUID(),
       sourceId: Number(sourceId),
       snapshotId,
+      checkId,
       targetAgentId: agentId,
       selectorContext,
     })
@@ -125,8 +129,14 @@ export default function OpenInFirefox({
   return (
     <>
       <Space direction="vertical" size={4}>
-        <Button size={small ? 'small' : undefined} loading={busy} onClick={start}>
-          {statusFailed ? 'Retry status' : `Open snapshot #${snapshotId}`}
+        <Button
+          size={small ? 'small' : undefined}
+          aria-label={actionLabel}
+          disabled={busy}
+          loading={busy}
+          onClick={start}
+        >
+          {actionLabel}
         </Button>
         {feedback && (
           <Typography.Text role="status" type={tone}>

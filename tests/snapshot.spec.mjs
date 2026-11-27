@@ -155,6 +155,7 @@ test('Source #541 sends snapshot #578 to one agent and waits for acknowledgement
       requestId: expect.any(String),
       sourceId: 541,
       snapshotId: 578,
+      checkId: latestCheck.id,
       targetAgentId: agent.agentId,
     },
   ])
@@ -335,6 +336,62 @@ test('Monitoring History and Field Inspector keep the selected capture and revie
     snapshotId: old.id,
     selectorContext,
   })
+})
+
+test('archive status and Firefox delivery follow the selected check on a reused snapshot', async ({
+  page,
+}) => {
+  const checks = new Map([
+    [latestCheck.id, { ...latestCheck, archive: { mode: 'minimal', status: 'minimal' } }],
+    [
+      historicalCheck.id,
+      {
+        ...historicalCheck,
+        snapshotId: latest.id,
+        archive: { mode: 'full', status: 'partial', captured: 7, missing: 2, truncated: 1 },
+      },
+    ],
+    [
+      reusedCheck.id,
+      {
+        ...reusedCheck,
+        snapshotId: latest.id,
+        archive: { mode: 'full', status: 'failed', failure: 'upload_failed' },
+      },
+    ],
+  ])
+  await page.route('**/backend' + sourcePath + '/review?*', (route) => {
+    const id = new URL(route.request().url()).searchParams.get('checkId') ?? latestCheck.id
+    return route.fulfill({
+      json: {
+        id: source.id,
+        source,
+        latestCheck: checks.get(latestCheck.id),
+        latestCompletedCheck: checks.get(latestCheck.id),
+        selectedCheck: checks.get(id),
+        snapshot: latest,
+        fields: [field],
+        earlierTasks: { items: [], total: 0, offset: 0, limit: 20 },
+      },
+    })
+  })
+  const bridge = await mockBridge(page)
+  await page.goto('/#' + sourcePath)
+  await expect(page.getByText('Minimal evidence')).toBeVisible()
+  await openSnapshot(page).click()
+  await expect(opened(page)).toBeVisible()
+  await page.goto('/#' + sourcePath + '?check=' + historicalCheck.id)
+  await expect(page.getByText('Partial full archive')).toBeVisible()
+  await expect(page.getByText('7 captured · 2 missing · 1 truncated')).toBeVisible()
+  await openSnapshot(page).click()
+  await expect(opened(page)).toBeVisible()
+  expect(bridge.posts.map(({ checkId, snapshotId }) => [checkId, snapshotId])).toEqual([
+    [latestCheck.id, latest.id], [historicalCheck.id, latest.id],
+  ])
+  await page.goto('/#' + sourcePath + '?check=' + reusedCheck.id)
+  await expect(page.getByText('Full archive unavailable')).toBeVisible()
+  await expect(page.getByText('Archive upload failed.')).toBeVisible()
+  await expect(openSnapshot(page)).toBeVisible()
 })
 
 test('Task Details and Evidence Review send the recorded selector context', async ({

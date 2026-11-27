@@ -232,6 +232,8 @@ export default function SourceReviewPage() {
               <SnapshotLink
                 sourceId={snapshot.source_id}
                 snapshotId={snapshot.id}
+                checkId={selectedCheck?.id}
+                archive={selectedCheck?.archive}
               />
             )}
             <Button

@@ -134,6 +134,8 @@ export default function TaskDetailsPage() {
                           <SnapshotLink
                             sourceId={snapshotSourceId}
                             snapshotId={snapshotId}
+                            checkId={review?.checkId ?? undefined}
+                            archive={review?.archive}
                             selectorContext={
                               review?.snapshot
                                 ? snapshotSelectorContext(review)

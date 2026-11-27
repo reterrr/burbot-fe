@@ -137,3 +137,14 @@ export interface ReviewSnapshot {
   content_hash: string | null
   structure_hash: string | null
 }
+
+export interface SnapshotArchive {
+  mode: 'minimal' | 'full'
+  status: 'minimal' | 'stored' | 'partial' | 'failed'
+  version?: 'full-resource-1'
+  captured?: number
+  missing?: number
+  truncated?: number
+  sizeBytes?: number
+  failure?: 'capture_unavailable' | 'upload_failed' | 'agent_incomplete' | 'capture_mismatch'
+}

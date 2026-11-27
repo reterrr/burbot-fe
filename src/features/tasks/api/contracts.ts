@@ -3,6 +3,7 @@ import type {
   ReviewEvaluation,
   ReviewSelector,
   ReviewSnapshot,
+  SnapshotArchive,
   ReviewSource,
 } from './review-contracts'
 
@@ -142,6 +143,8 @@ export interface MonitoringReview extends BusinessValueContext {
   evaluation?: ReviewEvaluation | null
   source?: ReviewSource | null
   snapshot?: ReviewSnapshot | null
+  checkId?: string | null
+  archive?: SnapshotArchive | null
   extractionRunId?: number | null
   extractionRunStatus?: string | null
   baselineObservationId: number | null
